@@ -1,4 +1,4 @@
-import { Innertube, UniversalCache } from 'youtubei.js';
+import { Innertube, UniversalCache } from 'youtubei.js/react-native';
 import { SearchResultItem, TrackInfo } from '../types';
 
 let innertubeInstance: Innertube | null = null;
