@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StatusBar } from 'react-native';
-import { Compass, Heart, Activity } from 'lucide-react-native';
+import { Home, Heart, Activity } from 'lucide-react-native';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
 import { StatsScreen } from './src/screens/StatsScreen';
@@ -66,16 +66,16 @@ export default function App() {
           onPress={() => setActiveTab('home')}
           className="items-center"
         >
-          <Compass
+          <Home
             size={22}
-            color={activeTab === 'home' ? '#38bdf8' : '#71717a'}
+            color={activeTab === 'home' ? '#ffffff' : '#71717a'}
           />
           <Text
             className={`text-[11px] font-semibold mt-1 ${
-              activeTab === 'home' ? 'text-primary' : 'text-zinc-500'
+              activeTab === 'home' ? 'text-white font-bold' : 'text-zinc-500'
             }`}
           >
-            Explore
+            Home
           </Text>
         </TouchableOpacity>
 
@@ -85,12 +85,12 @@ export default function App() {
         >
           <Heart
             size={22}
-            color={activeTab === 'library' ? '#38bdf8' : '#71717a'}
-            fill={activeTab === 'library' ? '#38bdf8' : 'transparent'}
+            color={activeTab === 'library' ? '#ffffff' : '#71717a'}
+            fill={activeTab === 'library' ? '#ffffff' : 'transparent'}
           />
           <Text
             className={`text-[11px] font-semibold mt-1 ${
-              activeTab === 'library' ? 'text-primary' : 'text-zinc-500'
+              activeTab === 'library' ? 'text-white font-bold' : 'text-zinc-500'
             }`}
           >
             Favorites
@@ -103,11 +103,11 @@ export default function App() {
         >
           <Activity
             size={22}
-            color={activeTab === 'pulse' ? '#818cf8' : '#71717a'}
+            color={activeTab === 'pulse' ? '#ffffff' : '#71717a'}
           />
           <Text
             className={`text-[11px] font-semibold mt-1 ${
-              activeTab === 'pulse' ? 'text-indigo-400 font-bold' : 'text-zinc-500'
+              activeTab === 'pulse' ? 'text-white font-bold' : 'text-zinc-500'
             }`}
           >
             Pulse

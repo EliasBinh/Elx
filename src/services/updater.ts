@@ -1,9 +1,12 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { APP_CONFIG } from '../constants/config';
 import { GitHubRelease, ReleaseAsset } from '../types';
+
+const DISMISSED_UPDATE_KEY = '@elx_dismissed_update_tag';
 
 export interface UpdateCheckResult {
   hasUpdate: boolean;
@@ -14,7 +17,7 @@ export interface UpdateCheckResult {
 }
 
 /**
- * Compares two semantic version strings (e.g. "1.0.1" > "1.0.0")
+ * Compares two semantic version strings (e.g. "1.0.6" > "1.0.5")
  */
 export function isVersionHigher(latest: string, current: string): boolean {
   const cleanLatest = latest.replace(/^v/i, '').trim();
@@ -30,6 +33,21 @@ export function isVersionHigher(latest: string, current: string): boolean {
     if (l < c) return false;
   }
   return false;
+}
+
+/**
+ * Strips raw markdown links and technical changelog URLs.
+ */
+function cleanReleaseNotes(body: string): string {
+  if (!body) return 'Performance improvements, UI refinements, and bug fixes.';
+  const cleaned = body
+    .replace(/\*\*Full Changelog\*\*:.*/gi, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[#*`_]/g, '')
+    .trim();
+
+  return cleaned || 'Performance improvements, UI refinements, and bug fixes.';
 }
 
 /**
@@ -65,6 +83,17 @@ export async function checkForUpdate(
     const latestVersion = release.tag_name || release.name || currentVersion;
     const hasUpdate = isVersionHigher(latestVersion, currentVersion);
 
+    // Check if user already dismissed this specific version in this session
+    const dismissedTag = await AsyncStorage.getItem(DISMISSED_UPDATE_KEY);
+    if (dismissedTag === latestVersion) {
+      return {
+        hasUpdate: false,
+        latestVersion,
+        currentVersion,
+        releaseNotes: '',
+      };
+    }
+
     const apkAsset = release.assets?.find(
       (a) => a.name.endsWith('.apk') || a.content_type === 'application/vnd.android.package-archive'
     );
@@ -73,7 +102,7 @@ export async function checkForUpdate(
       hasUpdate: hasUpdate && !!apkAsset,
       latestVersion,
       currentVersion,
-      releaseNotes: release.body || 'New update with performance improvements and bug fixes.',
+      releaseNotes: cleanReleaseNotes(release.body),
       apkAsset,
     };
   } catch (error) {
@@ -84,6 +113,14 @@ export async function checkForUpdate(
       currentVersion,
       releaseNotes: '',
     };
+  }
+}
+
+export async function dismissUpdateVersion(versionTag: string) {
+  try {
+    await AsyncStorage.setItem(DISMISSED_UPDATE_KEY, versionTag);
+  } catch (e) {
+    // ignore
   }
 }
 
@@ -98,7 +135,7 @@ export async function downloadAndInstallApk(
     throw new Error('In-app APK installation is only supported on Android devices.');
   }
 
-  const destinationPath = `${FileSystem.cacheDirectory}liner-mobile-update.apk`;
+  const destinationPath = `${FileSystem.cacheDirectory}elx-update.apk`;
 
   const fileInfo = await FileSystem.getInfoAsync(destinationPath);
   if (fileInfo.exists) {
@@ -125,10 +162,8 @@ export async function downloadAndInstallApk(
     throw new Error('Failed to download update package.');
   }
 
-  // Convert to content:// URI using FileProvider
   const contentUri = await FileSystem.getContentUriAsync(downloadResult.uri);
 
-  // Trigger package installer intent
   await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
     data: contentUri,
     type: 'application/vnd.android.package-archive',
