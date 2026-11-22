@@ -21,7 +21,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -32,16 +31,13 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Run Expo Prebuild
-        run: npx expo prebuild --platform android --clean
-
       - name: Make Gradlew Executable
         run: chmod +x android/gradlew
 
       - name: Build Android Release APK
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Locate and Prepare Release APK
         id: prepare_apk
@@ -66,4 +62,3 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
