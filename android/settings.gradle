@@ -21,7 +21,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   }
 }
 
-rootProject.name = 'Liner Mobile'
+rootProject.name = 'Elx'
 
 dependencyResolutionManagement {
   versionCatalogs {

@@ -1,4 +1,4 @@
-package com.tryliner.mobile
+package com.eliasbinh.elx
 
 import android.app.Application
 import android.content.res.Configuration

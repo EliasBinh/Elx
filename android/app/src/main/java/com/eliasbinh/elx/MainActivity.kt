@@ -1,4 +1,4 @@
-package com.tryliner.mobile
+package com.eliasbinh.elx
 
 import android.os.Build
 import android.os.Bundle
