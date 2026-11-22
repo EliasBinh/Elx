@@ -1,0 +1,23 @@
+node_modules/
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Android build outputs
+android/app/build/
+android/build/
+android/.gradle/
+android/app/.cxx/
+android/.idea/
+android/local.properties
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
