@@ -1,30 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StatusBar } from 'react-native';
-import { Compass, Heart } from 'lucide-react-native';
+import { Compass, Heart, Activity } from 'lucide-react-native';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
+import { StatsScreen } from './src/screens/StatsScreen';
 import { PlayerScreen } from './src/screens/PlayerScreen';
 import { MiniPlayer } from './src/components/player/MiniPlayer';
 import { UpdateModal } from './src/components/UpdateModal';
 import { setupPlayer } from './src/services/playerInit';
 import { useLibraryStore } from './src/store/libraryStore';
+import { useStatsStore } from './src/store/statsStore';
 import { checkForUpdate, UpdateCheckResult } from './src/services/updater';
 import { checkAndPromptBatteryOptimization } from './src/services/samsungOptimizer';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'home' | 'library'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'library' | 'pulse'>('home');
   const [fullPlayerVisible, setFullPlayerVisible] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   const loadLibrary = useLibraryStore((s) => s.loadLibrary);
+  const loadStats = useStatsStore((s) => s.loadStats);
 
   useEffect(() => {
     // 1. Initialize Audio Player Service
     setupPlayer();
 
-    // 2. Load stored favorites and history
+    // 2. Load stored favorites, history & listening stats
     loadLibrary();
+    loadStats();
 
     // 3. Proactive check for Samsung battery optimization
     checkAndPromptBatteryOptimization();
@@ -44,7 +48,13 @@ export default function App() {
 
       {/* Screen View */}
       <View className="flex-1">
-        {activeTab === 'home' ? <HomeScreen /> : <LibraryScreen />}
+        {activeTab === 'home' ? (
+          <HomeScreen />
+        ) : activeTab === 'library' ? (
+          <LibraryScreen />
+        ) : (
+          <StatsScreen />
+        )}
       </View>
 
       {/* Docked Mini Player */}
@@ -84,6 +94,23 @@ export default function App() {
             }`}
           >
             Favorites
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setActiveTab('pulse')}
+          className="items-center"
+        >
+          <Activity
+            size={22}
+            color={activeTab === 'pulse' ? '#818cf8' : '#71717a'}
+          />
+          <Text
+            className={`text-[11px] font-semibold mt-1 ${
+              activeTab === 'pulse' ? 'text-indigo-400 font-bold' : 'text-zinc-500'
+            }`}
+          >
+            Pulse
           </Text>
         </TouchableOpacity>
       </View>

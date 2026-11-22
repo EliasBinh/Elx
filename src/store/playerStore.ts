@@ -70,6 +70,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await TrackPlayer.play();
       set({ isPlaying: true, isLoading: false });
 
+      // Automatically track stats & analytics
+      const { useStatsStore } = require('./statsStore');
+      const { analytics } = require('../services/analytics');
+      useStatsStore.getState().recordSongPlay(activeTrack);
+      analytics.trackSongPlayed(activeTrack);
+
       // Automatically fetch synced lyrics and autoplay queue in background
       get().loadLyricsForCurrentTrack();
 
