@@ -53,58 +53,6 @@ Elx/
 ├── App.tsx                  # Root navigation & app initialization
 └── index.js                 # Entry point & TrackPlayer service registration
 ```
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 20+
-- npm or yarn
-- Android device or emulator (Android 7.0+)
-
-### Setup
-
-```bash
-git clone https://github.com/EliasBinh/Elx.git
-cd Elx
-npm install --legacy-peer-deps
-npm start
-```
-
----
-
-## Building APK
-
-### 1. Automated via GitHub Actions
-
-Pushing a version tag triggers `.github/workflows/build-apk.yml`, builds `elx.apk`, and creates a GitHub Release:
-
-```bash
-git commit -am "Release v1.0.2"
-git tag v1.0.2
-git push origin v1.0.2
-```
-
-### 2. Manual Local Build
-
-```bash
-cd android
-./gradlew assembleRelease --no-daemon
-```
-
-The APK will be at `android/app/build/outputs/apk/release/app-release.apk`.
-
----
-
-## Auto-Updater
-
-1. The app queries `https://api.github.com/repos/EliasBinh/Elx/releases/latest` on launch.
-2. If a higher semantic version tag exists, an update prompt appears.
-3. The APK downloads directly into the app cache via `expo-file-system`.
-4. An `Intent.ACTION_VIEW` intent opens the installer with a `content://` URI from `FileProvider`.
-
 ---
 
 ## License
