@@ -58,7 +58,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             Update Available
           </Text>
           <Text className="text-zinc-400 text-xs mt-1">
-            Version {updateInfo.latestVersion} is now available (Current: v{updateInfo.currentVersion}).
+            Version {updateInfo.latestVersion} of Elx is now available (Current: v{updateInfo.currentVersion}).
           </Text>
 
           {/* Release Notes */}
@@ -118,3 +118,4 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
     </Modal>
   );
 };
+

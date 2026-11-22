@@ -76,7 +76,7 @@ export const HomeScreen: React.FC = () => {
       <View className="px-5 pt-4 pb-2">
         {/* App Title */}
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-white font-black text-2xl tracking-tight">LINER</Text>
+          <Text className="text-white font-black text-2xl tracking-tight">ELX</Text>
           <View className="px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700">
             <Text className="text-zinc-400 text-[10px] font-bold">OG</Text>
           </View>
@@ -201,3 +201,4 @@ export const HomeScreen: React.FC = () => {
     </SafeAreaView>
   );
 };
+

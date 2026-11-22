@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Liner Mobile",
-    "slug": "liner-mobile",
+    "name": "Elx",
+    "slug": "elx",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,10 +13,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tryliner.mobile"
+      "bundleIdentifier": "com.eliasbinh.elx"
     },
     "android": {
-      "package": "com.tryliner.mobile",
+      "package": "com.eliasbinh.elx",
       "adaptiveIcon": {
         "backgroundColor": "#09090b"
       },

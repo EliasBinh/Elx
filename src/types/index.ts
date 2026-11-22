@@ -60,3 +60,4 @@ export interface GitHubRelease {
 }
 
 export type PlaybackMode = 'repeat-off' | 'repeat-all' | 'repeat-one' | 'shuffle';
+

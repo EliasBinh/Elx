@@ -76,3 +76,4 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({ onPress }) => {
     </TouchableOpacity>
   );
 };
+

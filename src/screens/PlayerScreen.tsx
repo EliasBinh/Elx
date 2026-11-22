@@ -124,7 +124,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
                   style={{ width: width * 0.8, height: width * 0.8 }}
                   className="rounded-3xl bg-zinc-900 items-center justify-center border border-white/10"
                 >
-                  <Text className="text-zinc-600 font-bold text-4xl">LINER</Text>
+                  <Text className="text-zinc-600 font-bold text-4xl">ELX</Text>
                 </View>
               )}
             </View>
@@ -238,3 +238,4 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
     </View>
   );
 };
+

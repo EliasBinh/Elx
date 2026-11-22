@@ -11,7 +11,7 @@ export async function checkAndPromptBatteryOptimization() {
   try {
     Alert.alert(
       "Background Playback Optimization",
-      "To ensure uninterrupted playback when the screen is locked or while multitasking, allow Liner Mobile to run without battery restrictions.",
+      "To ensure uninterrupted playback when the screen is locked or while multitasking, allow Elx to run without battery restrictions.",
       [
         {
           text: "Later",

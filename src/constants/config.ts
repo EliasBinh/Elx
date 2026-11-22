@@ -1,12 +1,12 @@
 export const APP_CONFIG = {
-  APP_NAME: "Liner Mobile",
+  APP_NAME: "Elx",
   VERSION: "1.0.0",
-  // Default repository for GitHub Releases auto-updater
-  DEFAULT_GITHUB_OWNER: "tryliner",
-  DEFAULT_GITHUB_REPO: "liner-mobile",
+  // GitHub Releases auto-updater repository
+  DEFAULT_GITHUB_OWNER: "EliasBinh",
+  DEFAULT_GITHUB_REPO: "Elx",
   // LRCLIB API endpoint for syllable/word-synced lyrics
   LRCLIB_API_URL: "https://lrclib.net/api",
-  USER_AGENT: "LinerMobile/1.0.0 (https://github.com/tryliner/liner-mobile)",
+  USER_AGENT: "Elx/1.0.0 (https://github.com/EliasBinh/Elx)",
 };
 
 export const STORAGE_KEYS = {
@@ -15,3 +15,4 @@ export const STORAGE_KEYS = {
   HISTORY: "@liner_history",
   SETTINGS: "@liner_settings",
 };
+

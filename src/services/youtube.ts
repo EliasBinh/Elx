@@ -180,3 +180,4 @@ function parseDurationToSeconds(duration: string): number {
   }
   return 180;
 }
+
