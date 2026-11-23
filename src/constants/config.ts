@@ -1,12 +1,12 @@
 export const APP_CONFIG = {
   APP_NAME: "Elx",
-  VERSION: "1.0.8",
+  VERSION: "1.0.9",
   // GitHub Releases auto-updater repository
   DEFAULT_GITHUB_OWNER: "EliasBinh",
   DEFAULT_GITHUB_REPO: "Elx",
   // LRCLIB API endpoint for syllable/word-synced lyrics
   LRCLIB_API_URL: "https://lrclib.net/api",
-  USER_AGENT: "Elx/1.0.8 (https://github.com/EliasBinh/Elx)",
+  USER_AGENT: "Elx/1.0.9 (https://github.com/EliasBinh/Elx)",
 };
 
 export const STORAGE_KEYS = {

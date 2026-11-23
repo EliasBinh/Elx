@@ -207,18 +207,18 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
               onPress={skipPrevious}
               className="w-12 h-12 items-center justify-center"
             >
-              <SkipBack size={26} color="#ffffff" />
+              <SkipBack size={26} color="#ffffff" fill="#ffffff" />
             </TouchableOpacity>
 
             {/* Play / Pause Main Button */}
             <TouchableOpacity
               onPress={togglePlayPause}
-              className="w-18 h-18 w-[72px] h-[72px] rounded-full bg-white items-center justify-center shadow-lg"
+              className="w-[72px] h-[72px] rounded-full bg-white items-center justify-center shadow-lg active:scale-95"
             >
               {isPlaying ? (
-                <Pause size={28} color="#000000" fill="#000000" />
+                <Pause size={30} color="#000000" fill="#000000" />
               ) : (
-                <Play size={28} color="#000000" fill="#000000" className="ml-1" />
+                <Play size={30} color="#000000" fill="#000000" className="ml-1" />
               )}
             </TouchableOpacity>
 
@@ -227,7 +227,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
               onPress={skipNext}
               className="w-12 h-12 items-center justify-center"
             >
-              <SkipForward size={26} color="#ffffff" />
+              <SkipForward size={26} color="#ffffff" fill="#ffffff" />
             </TouchableOpacity>
 
             {/* Lyrics toggle button on bottom right */}
