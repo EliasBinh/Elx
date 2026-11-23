@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import TrackPlayer, { State } from 'react-native-track-player';
+import TrackPlayer from 'react-native-track-player';
 import { LyricsData, PlaybackMode, TrackInfo } from '../types';
 import { getTrackAudioStreamUrl, getRelatedTracks } from '../services/youtube';
 import { fetchLyricsFromLrcLib } from '../services/lyrics/lyricsService';
@@ -51,28 +51,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         queueIndex: index >= 0 ? index : 0,
       });
 
-      // Resolve audio stream with Android compatible headers
-      const streamData = await getTrackAudioStreamUrl(track.id);
-      if (!streamData || !streamData.url) {
-        throw new Error('Could not resolve audio stream URL');
+      // Resolve direct audio stream URL
+      const streamUrl = await getTrackAudioStreamUrl(track.id);
+      if (!streamUrl) {
+        throw new Error('Stream URL unavailable');
       }
 
       const activeTrack: TrackInfo = {
         ...track,
-        streamUrl: streamData.url,
-        headers: streamData.headers,
+        streamUrl,
       };
       set({ currentTrack: activeTrack });
 
       await TrackPlayer.reset();
       await TrackPlayer.add({
         id: activeTrack.id,
-        url: streamData.url,
+        url: streamUrl,
         title: activeTrack.title,
         artist: activeTrack.artist,
         artwork: activeTrack.artwork,
         duration: activeTrack.duration,
-        ...(streamData.headers ? { headers: streamData.headers } : {}),
       });
 
       await TrackPlayer.play();
@@ -93,19 +91,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           }
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to play track:', error);
       set({ isLoading: false, isPlaying: false });
-      showToast(`Cannot play "${track.title}". Skipping...`);
-      // Auto-skip to next after short delay
-      setTimeout(() => {
-        get().skipNext();
-      }, 1500);
+      showToast(`Cannot play "${track.title}" (${error?.message || 'Error'})`);
+      // Never auto-skip on error to prevent infinite skipping loops!
     }
   },
 
   togglePlayPause: async () => {
-    const { isPlaying } = get();
+    const { isPlaying, currentTrack } = get();
+    if (!currentTrack) return;
+
     if (isPlaying) {
       await TrackPlayer.pause();
       set({ isPlaying: false });
@@ -147,10 +144,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (queue.length === 0) return;
 
     // If more than 3 seconds in, restart current track
-    const position = await TrackPlayer.getPosition();
-    if (position > 3) {
-      await TrackPlayer.seekTo(0);
-      return;
+    try {
+      const position = await TrackPlayer.getPosition();
+      if (position > 3) {
+        await TrackPlayer.seekTo(0);
+        return;
+      }
+    } catch (e) {
+      // ignore
     }
 
     const prevIndex = queueIndex - 1 >= 0 ? queueIndex - 1 : queue.length - 1;

@@ -42,9 +42,16 @@ export async function setupPlayer(): Promise<boolean> {
 
     isSetup = true;
     return true;
-  } catch (error) {
+  } catch (error: any) {
+    if (
+      error?.message?.includes('already been initialized') ||
+      error?.message?.includes('already initialized') ||
+      error?.code === 'player_already_initialized'
+    ) {
+      isSetup = true;
+      return true;
+    }
     console.error('Failed to setup TrackPlayer:', error);
     return false;
   }
 }
-

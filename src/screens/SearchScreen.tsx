@@ -11,7 +11,7 @@ import {
   Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Search, X, Music, Clock, Trash2, MoreVertical } from 'lucide-react-native';
+import { Search, X, Music, Clock, Trash2, MoreVertical, Cast } from 'lucide-react-native';
 import { searchTracks } from '../services/youtube';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
@@ -169,14 +169,14 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Search Header */}
-      <View className="px-5 pt-3 pb-3">
-        <View className="flex-row items-center bg-card/90 border border-zinc-800 rounded-xl px-3.5 py-2.5 shadow-sm">
+      <View className="px-5 pt-3 pb-3 flex-row items-center">
+        <View className="flex-1 flex-row items-center bg-card/90 border border-zinc-800 rounded-xl px-3.5 py-2.5 shadow-sm mr-2.5">
           <Search size={18} color="#71717a" />
           <TextInput
             value={query}
             onChangeText={handleQueryChange}
             onSubmitEditing={() => performSearch(query)}
-            placeholder="Search songs, albums, artists..."
+            placeholder="Search"
             placeholderTextColor="#71717a"
             className="flex-1 ml-2.5 text-white text-sm"
             autoCorrect={false}
@@ -189,6 +189,9 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
             </TouchableOpacity>
           )}
         </View>
+        <TouchableOpacity activeOpacity={0.7} className="w-9 h-9 items-center justify-center">
+          <Cast size={20} color="#a1a1aa" />
+        </TouchableOpacity>
       </View>
 
       {/* Content Area */}

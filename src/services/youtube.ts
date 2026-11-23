@@ -28,7 +28,7 @@ export async function getInnertube(): Promise<Innertube> {
 
 /**
  * Searches for songs and tracks on YouTube.
- * Returns up to 20 rich results with thumbnail, title, artist, and duration.
+ * Returns rich results with thumbnail, title, artist, and duration.
  */
 export async function searchTracks(query: string): Promise<SearchResultItem[]> {
   if (!query || !query.trim()) return [];
@@ -68,99 +68,49 @@ export async function searchTracks(query: string): Promise<SearchResultItem[]> {
   }
 }
 
-export interface AudioStreamResult {
-  url: string;
-  headers?: Record<string, string>;
-}
-
-function getClientUserAgent(client: string): string {
-  switch (client) {
-    case 'ANDROID_MUSIC':
-      return 'com.google.android.apps.youtube.music/7.27.52 (Linux; U; Android 14)';
-    case 'ANDROID':
-      return 'com.google.android.youtube/19.47.53 (Linux; U; Android 14)';
-    case 'IOS':
-      return 'com.google.ios.youtube/19.47.7 (iPhone16,2; U; CPU iOS 18_1_1)';
-    case 'TV_EMBEDDED':
-      return 'Mozilla/5.0 (CrKey armv7l 1.5.16041) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.0 Safari/537.36';
-    default:
-      return 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
-  }
-}
-
 /**
- * Resolves direct high-quality playable audio stream URL using multi-client fallback.
- * Includes necessary User-Agent and Referer headers so Android does not get 403 Forbidden.
+ * Resolves direct high-quality playable audio stream URL.
+ * Uses the iOS player client which provides unthrottled, unencrypted direct HTTPS audio streams (audio/mp4).
  */
-export async function getTrackAudioStreamUrl(videoId: string): Promise<AudioStreamResult | null> {
+export async function getTrackAudioStreamUrl(videoId: string): Promise<string | null> {
   try {
     const yt = await getInnertube();
-    const clients = ['ANDROID_MUSIC', 'IOS', 'ANDROID', 'TV_EMBEDDED'] as const;
 
-    for (const client of clients) {
-      try {
-        const playerRes = await yt.actions.execute('/player', {
-          videoId,
-          client,
-        });
+    // 1. Primary: execute player action with iOS client
+    try {
+      const playerRes = await yt.actions.execute('/player', {
+        videoId,
+        client: 'IOS',
+      });
 
-        const status = playerRes.data?.playabilityStatus?.status;
-        if (status && status !== 'OK') {
-          continue;
-        }
+      const adaptiveFormats = playerRes.data?.streamingData?.adaptiveFormats || [];
+      const audioFormats = adaptiveFormats
+        .filter((f: any) => f.mimeType?.includes('audio/') && f.url)
+        .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
 
-        const adaptiveFormats = playerRes.data?.streamingData?.adaptiveFormats || [];
-        const audioFormats = adaptiveFormats
-          .filter((f: any) => f.mimeType?.includes('audio/') && f.url)
-          .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
-
-        if (audioFormats.length > 0 && audioFormats[0].url) {
-          return {
-            url: audioFormats[0].url,
-            headers: {
-              'User-Agent': getClientUserAgent(client),
-              Referer: 'https://music.youtube.com/',
-              Origin: 'https://music.youtube.com',
-            },
-          };
-        }
-
-        const generalFormats = playerRes.data?.streamingData?.formats || [];
-        const generalAudio = generalFormats.find((f: any) => f.url);
-        if (generalAudio?.url) {
-          return {
-            url: generalAudio.url,
-            headers: {
-              'User-Agent': getClientUserAgent(client),
-              Referer: 'https://music.youtube.com/',
-              Origin: 'https://music.youtube.com',
-            },
-          };
-        }
-      } catch (clientErr) {
-        // try next client
-        continue;
+      if (audioFormats.length > 0 && audioFormats[0].url) {
+        return audioFormats[0].url;
       }
+
+      const generalFormats = playerRes.data?.streamingData?.formats || [];
+      const generalAudio = generalFormats.find((f: any) => f.url);
+      if (generalAudio?.url) {
+        return generalAudio.url;
+      }
+    } catch (iosErr) {
+      console.warn('IOS client player extraction failed:', iosErr);
     }
 
-    // Secondary fallback: Innertube's built-in getBasicInfo with decipher
+    // 2. Secondary fallback: yt.getInfo with format decipher
     try {
-      const info = await yt.getBasicInfo(videoId, { client: 'IOS' });
+      const info = await yt.getInfo(videoId);
       const format = info.chooseFormat({ type: 'audio', quality: 'best' });
       if (format) {
         const url = format.decipher ? format.decipher(yt.session.player) : (format as any).url;
-        if (url) {
-          return {
-            url,
-            headers: {
-              'User-Agent': getClientUserAgent('IOS'),
-              Referer: 'https://music.youtube.com/',
-            },
-          };
-        }
+        if (url) return url;
       }
     } catch (fallbackErr) {
-      // ignore
+      console.warn('getInfo fallback failed:', fallbackErr);
     }
 
     return null;

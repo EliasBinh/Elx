@@ -230,8 +230,13 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
               <SkipForward size={26} color="#ffffff" />
             </TouchableOpacity>
 
-            {/* Filler for symmetrical balance */}
-            <View className="w-10 h-10" />
+            {/* Lyrics toggle button on bottom right */}
+            <TouchableOpacity
+              onPress={() => setShowLyrics(!showLyrics)}
+              className="w-10 h-10 items-center justify-center rounded-full bg-white/10"
+            >
+              <FileText size={18} color={showLyrics ? '#38bdf8' : '#ffffff'} />
+            </TouchableOpacity>
           </View>
         </View>
       </SafeAreaView>

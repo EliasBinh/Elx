@@ -6,7 +6,6 @@ export interface TrackInfo {
   artwork: string;
   duration: number; // in seconds
   streamUrl?: string;
-  headers?: Record<string, string>;
   isLive?: boolean;
 }
 

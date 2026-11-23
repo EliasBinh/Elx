@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StatusBar } from 'react-native';
-import { Home, Search, Bookmark, Settings } from 'lucide-react-native';
+import { Home, Search, Library, Settings } from 'lucide-react-native';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
@@ -116,10 +116,9 @@ export default function App() {
           className="items-center"
           activeOpacity={0.7}
         >
-          <Bookmark
+          <Library
             size={22}
             color={activeTab === 'library' ? '#ffffff' : '#71717a'}
-            fill={activeTab === 'library' ? '#ffffff' : 'transparent'}
           />
           <Text
             className={`text-[10px] font-semibold mt-1 tracking-tight ${

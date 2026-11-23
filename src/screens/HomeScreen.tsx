@@ -7,7 +7,8 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
-import { Search, Flame, Clock, MoreVertical, Play, Music } from 'lucide-react-native';
+import { Search, Flame, Clock, MoreVertical, Play, Music, Cast } from 'lucide-react-native';
+import { LinerLogo } from '../components/LinerLogo';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { TrackInfo } from '../types';
@@ -144,12 +145,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenSearch }) => {
       <View className="px-5 pt-3 pb-2">
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center">
-            <Image
-              source={require('../../assets/icon.png')}
-              className="w-7 h-7 rounded-lg mr-2.5"
-            />
-            <Text className="text-white font-extrabold text-lg tracking-tight">ELX</Text>
+            <LinerLogo size={26} color="#ffffff" />
+            <Text className="text-white font-black text-lg tracking-wider ml-2.5">LINER</Text>
           </View>
+          <TouchableOpacity activeOpacity={0.7} className="w-8 h-8 items-center justify-center">
+            <Cast size={19} color="#a1a1aa" />
+          </TouchableOpacity>
         </View>
 
         {/* Search Bar Button (Opens Search Tab) */}

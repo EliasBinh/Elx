@@ -33,7 +33,7 @@ export async function PlaybackService() {
     TrackPlayer.seekTo(event.position);
   });
 
-  // Track real listening time across sessions
+  // Track real listening time
   TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async () => {
     if (activeTrackStartTime > 0) {
       const elapsedMs = Date.now() - activeTrackStartTime;
@@ -45,28 +45,13 @@ export async function PlaybackService() {
     activeTrackStartTime = Date.now();
   });
 
-  // Auto-advance when queue track finishes
-  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
-    usePlayerStore.getState().skipNext();
-  });
-
-  // Playback error recovery
-  TrackPlayer.addEventListener(Event.PlaybackError, (error) => {
-    console.error('TrackPlayer background error:', error);
-    setTimeout(() => {
-      usePlayerStore.getState().skipNext();
-    }, 1500);
-  });
-
   // Audio Focus & Ducking (Samsung & Android calls/notifications)
   TrackPlayer.addEventListener(Event.RemoteDuck, async (event) => {
     if (event.permanent) {
       await TrackPlayer.stop();
     } else if (event.paused) {
-      // Audio focus lost (e.g. incoming phone call)
       await TrackPlayer.pause();
     } else {
-      // Audio focus restored
       await TrackPlayer.play();
     }
   });
