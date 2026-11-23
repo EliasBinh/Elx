@@ -1,6 +1,7 @@
 import { Innertube, UniversalCache } from 'youtubei.js/react-native';
 import { SearchResultItem, TrackInfo } from '../types';
 import { getCachedAudioUri, preloadAudioToDisk } from './audioCache';
+import { APP_CONFIG } from '../constants/config';
 
 let innertubeInstance: Innertube | null = null;
 let initPromise: Promise<Innertube> | null = null;
@@ -124,6 +125,9 @@ export async function searchTracks(query: string): Promise<SearchResultItem[]> {
         const durationText = vAny.duration?.text || '3:30';
         const durationSec = parseDurationToSeconds(durationText);
 
+        // Studio Master Audio Filter: exclude 1-hour loops (>15 min) or sound effects (<40s)
+        if (durationSec > 900 || durationSec < 40) continue;
+
         items.push({
           id: vAny.id,
           title,
@@ -137,6 +141,14 @@ export async function searchTracks(query: string): Promise<SearchResultItem[]> {
     }
 
     if (items.length > 0) {
+      // Prioritize Official Audio & Topic channel studio releases
+      items.sort((a, b) => {
+        const aStudio = a.title.toLowerCase().includes('official audio') || a.artist.includes('Topic');
+        const bStudio = b.title.toLowerCase().includes('official audio') || b.artist.includes('Topic');
+        if (aStudio && !bStudio) return -1;
+        if (!aStudio && bStudio) return 1;
+        return 0;
+      });
       return items;
     }
   } catch (error) {
@@ -225,6 +237,29 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
   }
 
   console.log(`[AudioStream] Resolving stream for videoId: ${videoId}`);
+
+  // TIER 0: Global Edge Gateway (20ms Edge Caching & Serverless Proxy)
+  if (APP_CONFIG.EDGE_GATEWAY_URL) {
+    try {
+      const edgeRes = await fetchWithTimeout(
+        `${APP_CONFIG.EDGE_GATEWAY_URL}/api/resolve?videoId=${videoId}`,
+        {},
+        2000
+      );
+      if (edgeRes.ok) {
+        const edgeData = await edgeRes.json();
+        if (edgeData && edgeData.streamUrl) {
+          console.log(
+            `[AudioStream] Resolved via Global Edge Gateway (${edgeData.edge || 'EDGE'}, cached=${edgeData.cached})`
+          );
+          cacheStreamUrl(videoId, edgeData.streamUrl);
+          return edgeData.streamUrl;
+        }
+      }
+    } catch {
+      // Seamlessly fallback to on-device resolution
+    }
+  }
 
   // TIER 1: Direct YouTube Player API with iOS Client Configurations (with 3.5s timeout)
   for (const cfg of IOS_CONFIGS) {
