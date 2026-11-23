@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,14 +15,24 @@ import {
   WifiOff,
   Trash2,
   FolderDown,
+  Plus,
+  Link,
+  ListMusic,
+  ChevronRight,
 } from 'lucide-react-native';
 import { useLibraryStore } from '../store/libraryStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useDownloadStore } from '../store/downloadStore';
-import { TrackInfo } from '../types';
+import { usePlaylistStore } from '../store/playlistStore';
+import { CoverCollage } from '../components/playlist/CoverCollage';
+import { CreatePlaylistModal } from '../components/playlist/CreatePlaylistModal';
+import { PlaylistDetailModal } from '../components/playlist/PlaylistDetailModal';
+import { TrackInfo, Playlist } from '../types';
 
 export const LibraryScreen: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'all' | 'downloaded' | 'favorites'>('all');
+  const [activeTab, setActiveTab] = useState<'playlists' | 'favorites' | 'downloaded' | 'all'>('playlists');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
 
   const favorites = useLibraryStore((s) => s.favorites);
   const toggleFavorite = useLibraryStore((s) => s.toggleFavorite);
@@ -33,17 +43,24 @@ export const LibraryScreen: React.FC = () => {
   const isOfflineOnly = useDownloadStore((s) => s.isOfflineOnly);
   const toggleOfflineOnly = useDownloadStore((s) => s.toggleOfflineOnly);
 
+  const playlists = usePlaylistStore((s) => s.playlists);
+  const loadPlaylists = usePlaylistStore((s) => s.loadPlaylists);
+  const deletePlaylist = usePlaylistStore((s) => s.deletePlaylist);
+
   const playTrack = usePlayerStore((s) => s.playTrack);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
 
-  // Compute display list based on active tab
+  useEffect(() => {
+    loadPlaylists();
+  }, []);
+
+  // Compute display tracks for non-playlist tabs
   let displayTracks: TrackInfo[] = [];
   if (activeTab === 'downloaded') {
     displayTracks = downloads;
   } else if (activeTab === 'favorites') {
     displayTracks = favorites;
-  } else {
-    // 'all': merge downloads and favorites (deduplicated)
+  } else if (activeTab === 'all') {
     const map = new Map<string, TrackInfo>();
     downloads.forEach((t) => map.set(t.id, t));
     favorites.forEach((t) => map.set(t.id, t));
@@ -69,6 +86,21 @@ export const LibraryScreen: React.FC = () => {
     );
   };
 
+  const handleDeletePlaylist = (playlist: Playlist) => {
+    Alert.alert(
+      'Delete Playlist',
+      `Are you sure you want to delete "${playlist.title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deletePlaylist(playlist.id),
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Top Header */}
@@ -77,7 +109,7 @@ export const LibraryScreen: React.FC = () => {
           <View>
             <Text className="text-white font-black text-2xl tracking-tight">LIBRARY</Text>
             <Text className="text-zinc-500 text-xs mt-0.5">
-              {downloads.length} downloaded • {favorites.length} favorites
+              {playlists.length} playlists • {favorites.length} favorites • {downloads.length} downloaded
             </Text>
           </View>
 
@@ -116,54 +148,32 @@ export const LibraryScreen: React.FC = () => {
           </View>
         ) : null}
 
-        {/* Filter Pills (All | Downloaded | Favorites) */}
+        {/* Filter Pills (Playlists | Favorites | Downloaded | All) */}
         <View className="flex-row space-x-2 my-1">
           <TouchableOpacity
-            onPress={() => setActiveTab('all')}
-            className={`px-4 py-1.5 rounded-full ${
-              activeTab === 'all'
-                ? 'bg-white'
-                : 'bg-card border border-zinc-800'
+            onPress={() => setActiveTab('playlists')}
+            className={`flex-row items-center px-3.5 py-1.5 rounded-full ${
+              activeTab === 'playlists' ? 'bg-white' : 'bg-card border border-zinc-800'
             }`}
           >
-            <Text
-              className={`text-xs font-bold ${
-                activeTab === 'all' ? 'text-black' : 'text-zinc-400'
-              }`}
-            >
-              All
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('downloaded')}
-            className={`flex-row items-center px-4 py-1.5 rounded-full ${
-              activeTab === 'downloaded'
-                ? 'bg-white'
-                : 'bg-card border border-zinc-800'
-            }`}
-          >
-            <ArrowDownCircle
+            <ListMusic
               size={13}
-              color={activeTab === 'downloaded' ? '#000000' : '#000000'}
-              fill={activeTab === 'downloaded' ? '#000000' : '#22c55e'}
+              color={activeTab === 'playlists' ? '#000000' : '#a1a1aa'}
               className="mr-1.5"
             />
             <Text
               className={`text-xs font-bold ${
-                activeTab === 'downloaded' ? 'text-black' : 'text-zinc-400'
+                activeTab === 'playlists' ? 'text-black' : 'text-zinc-400'
               }`}
             >
-              Downloaded ({downloads.length})
+              Playlists ({playlists.length})
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => setActiveTab('favorites')}
-            className={`flex-row items-center px-4 py-1.5 rounded-full ${
-              activeTab === 'favorites'
-                ? 'bg-white'
-                : 'bg-card border border-zinc-800'
+            className={`flex-row items-center px-3.5 py-1.5 rounded-full ${
+              activeTab === 'favorites' ? 'bg-white' : 'bg-card border border-zinc-800'
             }`}
           >
             <Heart
@@ -180,11 +190,109 @@ export const LibraryScreen: React.FC = () => {
               Favorites ({favorites.length})
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setActiveTab('downloaded')}
+            className={`flex-row items-center px-3.5 py-1.5 rounded-full ${
+              activeTab === 'downloaded' ? 'bg-white' : 'bg-card border border-zinc-800'
+            }`}
+          >
+            <ArrowDownCircle
+              size={13}
+              color={activeTab === 'downloaded' ? '#000000' : '#000000'}
+              fill={activeTab === 'downloaded' ? '#000000' : '#22c55e'}
+              className="mr-1.5"
+            />
+            <Text
+              className={`text-xs font-bold ${
+                activeTab === 'downloaded' ? 'text-black' : 'text-zinc-400'
+              }`}
+            >
+              Downloads ({downloads.length})
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Main Track List */}
-      {displayTracks.length === 0 ? (
+      {/* Tab: PLAYLISTS */}
+      {activeTab === 'playlists' ? (
+        <View className="flex-1 px-5 pt-2">
+          {/* Action Row: + New Playlist & Import */}
+          <View className="flex-row items-center justify-between mb-3">
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(true)}
+              activeOpacity={0.8}
+              className="flex-1 flex-row items-center justify-center bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 mr-2"
+            >
+              <Plus size={16} color="#ffffff" className="mr-1.5" />
+              <Text className="text-white font-bold text-xs">New Playlist</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(true)}
+              activeOpacity={0.8}
+              className="flex-1 flex-row items-center justify-center bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 ml-2"
+            >
+              <Link size={16} color="#38bdf8" className="mr-1.5" />
+              <Text className="text-sky-400 font-bold text-xs">Import Link</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Playlist Cards List */}
+          <FlatList
+            data={playlists}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 120 }}
+            ListEmptyComponent={
+              <View className="items-center justify-center py-20 px-6">
+                <View className="w-16 h-16 rounded-full bg-zinc-900 items-center justify-center mb-3">
+                  <ListMusic size={32} color="#71717a" />
+                </View>
+                <Text className="text-white font-bold text-base text-center mb-1">
+                  No playlists yet
+                </Text>
+                <Text className="text-zinc-500 text-xs text-center mb-5">
+                  Create your own playlists or import public playlists from YouTube.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowCreateModal(true)}
+                  className="bg-white px-5 py-2.5 rounded-full"
+                >
+                  <Text className="text-black font-extrabold text-xs">+ Create Playlist</Text>
+                </TouchableOpacity>
+              </View>
+            }
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() => setSelectedPlaylist(item)}
+                onLongPress={() => handleDeletePlaylist(item)}
+                activeOpacity={0.7}
+                className="flex-row items-center py-3 border-b border-zinc-900/80 active:bg-zinc-900/40"
+              >
+                <CoverCollage
+                  urls={item.coverUrls}
+                  size={54}
+                  borderRadius={12}
+                  className="mr-3.5 shadow-md shadow-black"
+                />
+
+                <View className="flex-1 mr-2">
+                  <Text className="text-white font-bold text-sm" numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text className="text-zinc-500 text-xs mt-0.5" numberOfLines={1}>
+                    {item.tracks.length} {item.tracks.length === 1 ? 'track' : 'tracks'}
+                    {item.description ? ` • ${item.description}` : ''}
+                  </Text>
+                </View>
+
+                <ChevronRight size={18} color="#71717a" />
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      ) : displayTracks.length === 0 ? (
         <View className="flex-1 items-center justify-center pb-20 px-6">
           {activeTab === 'downloaded' ? (
             <>
@@ -196,7 +304,7 @@ export const LibraryScreen: React.FC = () => {
                 Tap the download button on any track to listen offline without Wi-Fi.
               </Text>
             </>
-          ) : activeTab === 'favorites' ? (
+          ) : (
             <>
               <Heart size={48} color="#27272a" />
               <Text className="text-zinc-400 font-semibold text-base mt-4">
@@ -204,16 +312,6 @@ export const LibraryScreen: React.FC = () => {
               </Text>
               <Text className="text-zinc-600 text-xs text-center mt-1">
                 Tap the heart icon on any playing track to save it here.
-              </Text>
-            </>
-          ) : (
-            <>
-              <Music size={48} color="#27272a" />
-              <Text className="text-zinc-400 font-semibold text-base mt-4">
-                Library is empty
-              </Text>
-              <Text className="text-zinc-600 text-xs text-center mt-1">
-                Save songs or download tracks for offline listening.
               </Text>
             </>
           )}
@@ -297,6 +395,20 @@ export const LibraryScreen: React.FC = () => {
           }}
         />
       )}
+
+      {/* Create / Import Playlist Modal */}
+      <CreatePlaylistModal
+        visible={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={(pl) => setSelectedPlaylist(pl)}
+      />
+
+      {/* Playlist Detail Modal */}
+      <PlaylistDetailModal
+        visible={!!selectedPlaylist}
+        playlist={selectedPlaylist}
+        onClose={() => setSelectedPlaylist(null)}
+      />
     </SafeAreaView>
   );
 };

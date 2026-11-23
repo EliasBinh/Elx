@@ -2,6 +2,7 @@ import { Innertube, UniversalCache } from 'youtubei.js/react-native';
 import { SearchResultItem, TrackInfo } from '../types';
 import { getCachedAudioUri, preloadAudioToDisk } from './audioCache';
 import { APP_CONFIG } from '../constants/config';
+import { getClientVisitorData, resetClientVisitorData } from './visitorSession';
 
 let innertubeInstance: Innertube | null = null;
 let initPromise: Promise<Innertube> | null = null;
@@ -193,108 +194,127 @@ export async function searchTracks(query: string): Promise<SearchResultItem[]> {
   return [];
 }
 
-interface IOSClientConfig {
+interface ClientProfile {
+  name: string;
   version: string;
-  deviceModel: string;
-  osVersion: string;
+  clientId: string;
+  userAgent: string;
+  context: Record<string, any>;
 }
 
-const IOS_CONFIGS: IOSClientConfig[] = [
-  {
-    version: '20.10.1',
+const VISIONOS_PROFILE: ClientProfile = {
+  name: 'VISIONOS',
+  version: '1.02',
+  clientId: '101',
+  userAgent:
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15',
+  context: {
+    clientName: 'VISIONOS',
+    clientVersion: '1.02',
+    deviceMake: 'Apple',
+    deviceModel: 'RealityDevice17,1',
+    osName: 'visionOS',
+    osVersion: '26.5.23O471',
+    hl: 'en',
+    gl: 'US',
+  },
+};
+
+const ANDROID_VR_PROFILE: ClientProfile = {
+  name: 'ANDROID_VR',
+  version: '1.65.10',
+  clientId: '28',
+  userAgent:
+    'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
+  context: {
+    clientName: 'ANDROID_VR',
+    clientVersion: '1.65.10',
+    deviceMake: 'Oculus',
+    deviceModel: 'Quest 3',
+    osName: 'Android',
+    osVersion: '12L',
+    androidSdkVersion: 32,
+    hl: 'en',
+    gl: 'US',
+  },
+};
+
+const IOS_PROFILE: ClientProfile = {
+  name: 'iOS',
+  version: '20.10.1',
+  clientId: '5',
+  userAgent:
+    'com.google.ios.youtube/20.10.1 (iPhone14,3; U; CPU iOS 17_4_1 like Mac OS X)',
+  context: {
+    clientName: 'iOS',
+    clientVersion: '20.10.1',
+    deviceMake: 'Apple',
     deviceModel: 'iPhone14,3',
+    osName: 'iOS',
     osVersion: '17.4.1.21E236',
+    hl: 'en',
+    gl: 'US',
   },
-  {
-    version: '20.11.6',
-    deviceModel: 'iPhone10,4',
-    osVersion: '16.7.7.20H330',
-  },
-  {
-    version: '20.08.3',
-    deviceModel: 'iPhone15,2',
-    osVersion: '17.3.1.21D61',
-  },
-];
+};
 
-async function fetchAndroidMusicStream(videoId: string): Promise<string | null> {
+async function fetchProfileStream(
+  videoId: string,
+  profile: ClientProfile,
+  visitorData?: string,
+  timeoutMs = 2800
+): Promise<string | null> {
   try {
-    const res = await fetchWithTimeout(
-      'https://www.youtube.com/youtubei/v1/player?prettyPrint=false&alt=json',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Youtube-Client-Name': '21',
-          'X-Youtube-Client-Version': '6.40.52',
-        },
-        body: JSON.stringify({
-          videoId,
-          context: {
-            client: {
-              clientName: 'ANDROID_MUSIC',
-              clientVersion: '6.40.52',
-              hl: 'en',
-              gl: 'US',
-            },
-          },
-        }),
-      },
-      2500
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const adaptive = data.streamingData?.adaptiveFormats || [];
-    const general = data.streamingData?.formats || [];
-    const allAudio = [...adaptive, ...general].filter(
-      (f: any) => (f.mimeType || '').includes('audio/') && !!f.url
-    );
-    if (allAudio.length > 0) {
-      allAudio.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
-      return allAudio[0].url;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'User-Agent': profile.userAgent,
+      'X-Youtube-Client-Name': profile.clientId,
+      'X-Youtube-Client-Version': profile.version,
+    };
+    if (visitorData) {
+      headers['X-Goog-Visitor-Id'] = visitorData;
     }
-  } catch {
-    // ignore
-  }
-  return null;
-}
 
-async function fetchIOSStream(videoId: string, cfg: IOSClientConfig): Promise<string | null> {
-  try {
+    const clientContext = {
+      ...profile.context,
+      ...(visitorData ? { visitorData } : {}),
+    };
+
     const res = await fetchWithTimeout(
       'https://www.youtube.com/youtubei/v1/player?prettyPrint=false&alt=json',
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Youtube-Client-Name': '5',
-          'X-Youtube-Client-Version': cfg.version,
-        },
+        headers,
         body: JSON.stringify({
           videoId,
+          contentCheckOk: true,
+          racyCheckOk: true,
           context: {
-            client: {
-              clientName: 'iOS',
-              clientVersion: cfg.version,
-              deviceMake: 'Apple',
-              deviceModel: cfg.deviceModel,
-              osName: 'iOS',
-              osVersion: cfg.osVersion,
-              hl: 'en',
-              gl: 'US',
-            },
+            client: clientContext,
           },
         }),
       },
-      2500
+      timeoutMs
     );
+
     if (!res.ok) return null;
     const data = await res.json();
+
+    const status = data.playabilityStatus?.status;
+    if (status && status !== 'OK') {
+      if (status === 'LOGIN_REQUIRED') {
+        console.warn(
+          `[YouTube] ${profile.name} returned LOGIN_REQUIRED for ${videoId}: ${data.playabilityStatus?.reason}`
+        );
+      }
+      return null;
+    }
+
     const adaptive = data.streamingData?.adaptiveFormats || [];
     const general = data.streamingData?.formats || [];
     const allAudio = [...adaptive, ...general].filter(
       (f: any) => (f.mimeType || '').includes('audio/') && !!f.url
     );
+
     if (allAudio.length > 0) {
       allAudio.sort((a: any, b: any) => {
         const aIsMp4 = (a.mimeType || '').includes('audio/mp4');
@@ -313,7 +333,8 @@ async function fetchIOSStream(videoId: string, cfg: IOSClientConfig): Promise<st
 
 /**
  * Resolves direct high-quality playable audio stream URL.
- * Races Android Music and iOS clients in parallel for lightning-fast (150-250ms) resolution.
+ * Injects client-unique YouTube visitor session (Liner Desktop pattern) to prevent bot checks.
+ * Races VisionOS, Android VR, and iOS clients in parallel for lightning-fast (150-250ms) resolution.
  * Checks in-memory cache first for instant 0ms playback.
  */
 export async function getTrackAudioStreamUrl(videoId: string): Promise<string | null> {
@@ -349,12 +370,15 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
     }
   }
 
-  // TIER 1: High-Speed Parallel Race (Android Music + iOS Clients concurrently)
+  // Fetch or retrieve client visitor data
+  const visitorData = await getClientVisitorData();
+
+  // TIER 1: High-Speed Parallel Multi-Profile Race (VisionOS + Android VR + iOS concurrently)
   try {
     const raceTargets = [
-      fetchAndroidMusicStream(videoId),
-      fetchIOSStream(videoId, IOS_CONFIGS[0]),
-      fetchIOSStream(videoId, IOS_CONFIGS[1]),
+      fetchProfileStream(videoId, VISIONOS_PROFILE, visitorData, 2800),
+      fetchProfileStream(videoId, ANDROID_VR_PROFILE, visitorData, 2800),
+      fetchProfileStream(videoId, IOS_PROFILE, visitorData, 2800),
     ].map((promise) =>
       promise.then((url) => {
         if (url) return url;
@@ -369,7 +393,32 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
       return winnerUrl;
     }
   } catch {
-    console.warn('[AudioStream] Primary parallel race failed, falling back...');
+    console.warn('[AudioStream] Primary parallel race failed, resetting visitor session & retrying...');
+  }
+
+  // TIER 1.5: Retry with freshly minted visitor data if rate-limited or bot-challenged
+  try {
+    resetClientVisitorData();
+    const freshVisitor = await getClientVisitorData();
+    const retryTargets = [
+      fetchProfileStream(videoId, VISIONOS_PROFILE, freshVisitor, 3500),
+      fetchProfileStream(videoId, ANDROID_VR_PROFILE, freshVisitor, 3500),
+      fetchProfileStream(videoId, IOS_PROFILE, freshVisitor, 3500),
+    ].map((promise) =>
+      promise.then((url) => {
+        if (url) return url;
+        throw new Error('No stream');
+      })
+    );
+
+    const retryWinner = await Promise.any(retryTargets);
+    if (retryWinner) {
+      console.log(`[AudioStream] Recovered stream after visitor session refresh for ${videoId}`);
+      cacheStreamUrl(videoId, retryWinner);
+      return retryWinner;
+    }
+  } catch {
+    console.warn('[AudioStream] Retry with refreshed visitor session failed, falling back...');
   }
 
   // TIER 2: Innertube actions.execute with IOS client
@@ -430,9 +479,86 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
     }
   }
 
-  console.error(`[AudioStream] All stream extraction tiers exhausted for ${videoId}`);
-  return null;
+  console.error(`[AudioStream] YouTube refused stream from this network for ${videoId}`);
+  throw new Error('YouTube refused stream from this network');
 }
+
+/**
+ * Fetches all tracks and metadata of a YouTube Playlist for importing.
+ */
+export async function fetchPlaylistDetails(playlistId: string): Promise<{
+  id: string;
+  title: string;
+  description?: string;
+  tracks: TrackInfo[];
+}> {
+  try {
+    const yt = await getInnertube();
+    const pl = await yt.getPlaylist(playlistId);
+
+    const title =
+      (pl.info?.title as any)?.text ||
+      (typeof pl.info?.title === 'string' ? pl.info.title : 'Imported Playlist');
+    const description =
+      (pl.info?.description as any)?.text ||
+      (typeof pl.info?.description === 'string' ? pl.info.description : '');
+
+    const tracks: TrackInfo[] = [];
+    const videos = pl.videos || [];
+
+    for (const v of videos) {
+      const vAny = v as any;
+      const vId = vAny.content_id || vAny.id;
+      if (!vId) continue;
+
+      // Extract title
+      let tTitle = 'Unknown Track';
+      if (vAny.title?.text) tTitle = vAny.title.text;
+      else if (vAny.metadata?.title?.text) tTitle = vAny.metadata.title.text;
+      else if (typeof vAny.title === 'string') tTitle = vAny.title;
+
+      // Extract artist
+      let tArtist = 'Unknown Artist';
+      if (vAny.author?.name) tArtist = vAny.author.name;
+      else if (
+        vAny.metadata?.metadata?.metadata_rows?.[0]?.metadata_parts?.[0]?.text
+          ?.text
+      ) {
+        tArtist =
+          vAny.metadata.metadata.metadata_rows[0].metadata_parts[0].text.text;
+      }
+
+      // Extract artwork
+      let artwork = '';
+      if (vAny.thumbnails?.[0]?.url) artwork = vAny.thumbnails[0].url;
+      else if (vAny.content_image?.image?.[0]?.url)
+        artwork = vAny.content_image.image[0].url;
+      else artwork = `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`;
+
+      // Extract duration
+      const durationSec = vAny.duration?.seconds || 210;
+
+      tracks.push({
+        id: vId,
+        title: tTitle,
+        artist: tArtist,
+        artwork,
+        duration: durationSec,
+      });
+    }
+
+    return {
+      id: playlistId,
+      title,
+      description,
+      tracks,
+    };
+  } catch (error: any) {
+    console.error('[YouTube] Failed to fetch playlist details:', error);
+    throw new Error(`Failed to load playlist (${error?.message || 'Error'})`);
+  }
+}
+
 
 /**
  * Fetches "Up Next" / Radio related tracks for infinite continuous autoplay.

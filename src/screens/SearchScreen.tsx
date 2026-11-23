@@ -20,6 +20,7 @@ import {
   Check,
   Cast,
   ArrowDownCircle,
+  Plus,
 } from 'lucide-react-native';
 import { searchTracks, prefetchTrackAudioStreamUrl } from '../services/youtube';
 import { usePlayerStore } from '../store/playerStore';
@@ -27,6 +28,8 @@ import { useLibraryStore } from '../store/libraryStore';
 import { useDownloadStore } from '../store/downloadStore';
 import { SearchResultItem, TrackInfo } from '../types';
 import { LinerLogo } from '../components/LinerLogo';
+import { AddToPlaylistModal } from '../components/playlist/AddToPlaylistModal';
+import { CreatePlaylistModal } from '../components/playlist/CreatePlaylistModal';
 
 const RECENT_SEARCHES_KEY = '@elx_recent_searches_v3';
 
@@ -145,6 +148,8 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [playlistTargetTrack, setPlaylistTargetTrack] = useState<TrackInfo | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const inputRef = useRef<TextInput | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -539,9 +544,25 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
                     </View>
                   </View>
 
-                  <Text className="text-zinc-500 text-xs font-mono mr-2">
+                  <Text className="text-zinc-500 text-xs font-mono mr-3">
                     {item.durationText}
                   </Text>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      setPlaylistTargetTrack({
+                        id: item.id,
+                        title: item.title,
+                        artist: item.artist,
+                        artwork: item.artwork,
+                        duration: item.durationSeconds,
+                      });
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    className="w-8 h-8 items-center justify-center rounded-full active:bg-zinc-800"
+                  >
+                    <Plus size={18} color="#71717a" />
+                  </TouchableOpacity>
                 </TouchableOpacity>
               );
             }}
@@ -630,6 +651,20 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
           )}
         </ScrollView>
       )}
+
+      {/* Add To Playlist Modal */}
+      <AddToPlaylistModal
+        visible={!!playlistTargetTrack}
+        track={playlistTargetTrack}
+        onClose={() => setPlaylistTargetTrack(null)}
+        onRequestCreate={() => setShowCreateModal(true)}
+      />
+
+      {/* Create / Import Playlist Modal */}
+      <CreatePlaylistModal
+        visible={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
     </SafeAreaView>
   );
 };

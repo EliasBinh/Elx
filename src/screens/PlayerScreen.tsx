@@ -26,6 +26,7 @@ import {
   Cast,
   Share2,
   ListMusic,
+  ListPlus,
   ArrowUpRight,
   Sparkles,
   Trash2,
@@ -38,6 +39,8 @@ import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { useDownloadStore } from '../store/downloadStore';
 import { SyncedLyricsView } from '../components/lyrics/SyncedLyricsView';
+import { AddToPlaylistModal } from '../components/playlist/AddToPlaylistModal';
+import { CreatePlaylistModal } from '../components/playlist/CreatePlaylistModal';
 import { PlaybackMode, TrackInfo } from '../types';
 
 const { width } = Dimensions.get('window');
@@ -70,6 +73,8 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
 
   const [showFullWordly, setShowFullWordly] = useState(false);
   const [showQueueModal, setShowQueueModal] = useState(false);
+  const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
+  const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
 
   const { position, duration } = useProgress(200);
 
@@ -199,6 +204,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
               </View>
 
               <TouchableOpacity
+                onPress={() => setShowAddToPlaylist(true)}
                 hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                 className="w-10 h-10 items-center justify-center -mr-2"
               >
@@ -333,10 +339,13 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Liner-Style Auxiliary Toolbar: Cast, Download, Share, Queue, Wordly */}
+            {/* Liner-Style Auxiliary Toolbar: Add to Playlist, Download, Share, Queue, Wordly */}
             <View className="flex-row items-center justify-between mt-6 px-1">
-              <TouchableOpacity className="w-10 h-10 items-center justify-center">
-                <Cast size={20} color="#a1a1aa" />
+              <TouchableOpacity
+                onPress={() => setShowAddToPlaylist(true)}
+                className="w-10 h-10 items-center justify-center"
+              >
+                <ListPlus size={22} color="#ffffff" />
               </TouchableOpacity>
 
               <View className="flex-row items-center space-x-3">
@@ -521,6 +530,20 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Add To Playlist Modal */}
+      <AddToPlaylistModal
+        visible={showAddToPlaylist}
+        track={currentTrack}
+        onClose={() => setShowAddToPlaylist(false)}
+        onRequestCreate={() => setShowCreatePlaylistModal(true)}
+      />
+
+      {/* Create / Import Playlist Modal */}
+      <CreatePlaylistModal
+        visible={showCreatePlaylistModal}
+        onClose={() => setShowCreatePlaylistModal(false)}
+      />
     </View>
   );
 };

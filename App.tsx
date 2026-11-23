@@ -13,6 +13,8 @@ import { setupPlayer } from './src/services/playerInit';
 import { useLibraryStore } from './src/store/libraryStore';
 import { useStatsStore } from './src/store/statsStore';
 import { useDownloadStore } from './src/store/downloadStore';
+import { usePlaylistStore } from './src/store/playlistStore';
+import { initVisitorSession } from './src/services/visitorSession';
 import { checkForUpdate, UpdateCheckResult } from './src/services/updater';
 import { checkAndPromptBatteryOptimization } from './src/services/samsungOptimizer';
 
@@ -25,13 +27,16 @@ export default function App() {
   const loadLibrary = useLibraryStore((s) => s.loadLibrary);
   const loadStats = useStatsStore((s) => s.loadStats);
   const loadDownloads = useDownloadStore((s) => s.loadDownloads);
+  const loadPlaylists = usePlaylistStore((s) => s.loadPlaylists);
 
   useEffect(() => {
-    // 1. Initialize Audio Player Service
+    // 1. Initialize Audio Player Service & Eager Visitor Session
     setupPlayer();
+    initVisitorSession();
 
-    // 2. Load stored favorites, history & listening stats
+    // 2. Load stored favorites, playlists, history & listening stats
     loadLibrary();
+    loadPlaylists();
     loadStats();
     loadDownloads();
 

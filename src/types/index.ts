@@ -61,3 +61,13 @@ export interface GitHubRelease {
 
 export type PlaybackMode = 'repeat-off' | 'repeat-all' | 'repeat-one' | 'shuffle';
 
+export interface Playlist {
+  id: string;
+  title: string;
+  description?: string;
+  tracks: TrackInfo[];
+  createdAt: string;
+  updatedAt: string;
+  coverUrls?: string[];
+}
+
