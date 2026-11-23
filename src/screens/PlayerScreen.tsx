@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   Dimensions,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import { useProgress } from 'react-native-track-player';
 import {
@@ -19,7 +20,11 @@ import {
   Repeat1,
   Shuffle,
   Heart,
-  FileText,
+  MoreVertical,
+  Cast,
+  Share2,
+  ListMusic,
+  ArrowUpRight,
 } from 'lucide-react-native';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
@@ -36,6 +41,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const playbackMode = usePlayerStore((s) => s.playbackMode);
+  const lyrics = usePlayerStore((s) => s.lyrics);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
   const skipNext = usePlayerStore((s) => s.skipNext);
   const skipPrevious = usePlayerStore((s) => s.skipPrevious);
@@ -45,8 +51,8 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
   const favorites = useLibraryStore((s) => s.favorites);
   const toggleFavorite = useLibraryStore((s) => s.toggleFavorite);
 
-  const [showLyrics, setShowLyrics] = useState(false);
-  const { position, duration } = useProgress(500);
+  const [showFullLyrics, setShowFullLyrics] = useState(false);
+  const { position, duration } = useProgress(200);
 
   if (!currentTrack) return null;
 
@@ -65,182 +71,287 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
   };
 
   const progressPercent = duration > 0 ? (position / duration) * 100 : 0;
+  const currentMs = position * 1000;
+
+  // Determine active lyrics line index for live preview card
+  let activeIndex = -1;
+  const lyricLines = lyrics?.lines || [];
+  if (lyricLines.length > 0) {
+    for (let i = 0; i < lyricLines.length; i++) {
+      const line = lyricLines[i];
+      if (currentMs >= line.startTimeMs && currentMs < line.endTimeMs) {
+        activeIndex = i;
+        break;
+      }
+    }
+    if (activeIndex === -1 && currentMs > (lyricLines[lyricLines.length - 1]?.endTimeMs || 0)) {
+      activeIndex = lyricLines.length - 1;
+    }
+  }
+
+  // Get 4 lines around the active line for preview
+  const previewStart = Math.max(0, activeIndex >= 0 ? activeIndex - 1 : 0);
+  const previewLines = lyricLines.slice(previewStart, previewStart + 4);
+  const hasLyrics = lyricLines.length > 0;
 
   return (
-    <View className="flex-1 bg-background">
-      {/* Background Album Art (Full bleed blur overlay) */}
+    <View className="flex-1 bg-[#09090b]">
+      {/* Dynamic blurred artwork backdrop */}
       {currentTrack.artwork ? (
         <Image
           source={{ uri: currentTrack.artwork }}
           style={StyleSheet.absoluteFillObject}
-          blurRadius={70}
-          className="opacity-30"
+          blurRadius={80}
+          className="opacity-40"
         />
       ) : null}
       <View style={StyleSheet.absoluteFillObject} className="bg-black/60" />
 
-      <SafeAreaView className="flex-1 justify-between px-6 py-4">
-        {/* Header */}
-        <View className="flex-row items-center justify-between mt-2">
-          <TouchableOpacity
-            onPress={onClose}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            className="w-10 h-10 rounded-full bg-white/10 items-center justify-center"
-          >
-            <ChevronDown size={22} color="#ffffff" />
-          </TouchableOpacity>
+      <SafeAreaView className="flex-1">
+        {showFullLyrics ? (
+          /* Full Screen Synced Karaoke Lyrics Mode */
+          <View className="flex-1 px-5 pt-2">
+            <View className="flex-row items-center justify-between py-2">
+              <TouchableOpacity
+                onPress={() => setShowFullLyrics(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                className="w-10 h-10 rounded-full bg-white/10 items-center justify-center"
+              >
+                <ChevronDown size={22} color="#ffffff" />
+              </TouchableOpacity>
+              <Text className="text-white font-bold text-base">Lời bài hát</Text>
+              <View className="w-10" />
+            </View>
 
-          <Text className="text-zinc-400 font-semibold text-xs tracking-widest uppercase">
-            {showLyrics ? 'Lyrics' : 'Now Playing'}
-          </Text>
-
-          <TouchableOpacity
-            onPress={() => setShowLyrics(!showLyrics)}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            className={`w-10 h-10 rounded-full items-center justify-center ${
-              showLyrics ? 'bg-primary' : 'bg-white/10'
-            }`}
-          >
-            <FileText size={18} color={showLyrics ? '#000000' : '#ffffff'} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Center: Artwork OR Synced Lyrics */}
-        <View className="flex-1 items-center justify-center my-6">
-          {showLyrics ? (
-            <View className="flex-1 w-full">
+            <View className="flex-1 mt-2">
               <SyncedLyricsView />
             </View>
-          ) : (
-            <View className="items-center justify-center">
+          </View>
+        ) : (
+          /* Spotify-Style Immersive Player Screen */
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 60 }}
+          >
+            {/* Header: Down Chevron + Playing From Album + More */}
+            <View className="flex-row items-center justify-between mb-6">
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                className="w-10 h-10 items-center justify-center -ml-2"
+              >
+                <ChevronDown size={26} color="#ffffff" />
+              </TouchableOpacity>
+
+              <View className="items-center flex-1 mx-3">
+                <Text className="text-zinc-400 font-bold text-[11px] tracking-wider uppercase">
+                  Đang phát từ Album
+                </Text>
+                <Text className="text-white font-bold text-sm mt-0.5" numberOfLines={1}>
+                  {currentTrack.album || currentTrack.title}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                className="w-10 h-10 items-center justify-center -mr-2"
+              >
+                <MoreVertical size={20} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Album Artwork Canvas */}
+            <View className="items-center justify-center my-4">
               {currentTrack.artwork ? (
                 <Image
                   source={{ uri: currentTrack.artwork }}
-                  style={{ width: width * 0.8, height: width * 0.8 }}
-                  className="rounded-3xl shadow-2xl bg-zinc-900 border border-white/10"
+                  style={{ width: width * 0.86, height: width * 0.86 }}
+                  className="rounded-2xl shadow-2xl bg-zinc-900 border border-white/10"
                 />
               ) : (
                 <View
-                  style={{ width: width * 0.8, height: width * 0.8 }}
-                  className="rounded-3xl bg-zinc-900 items-center justify-center border border-white/10"
+                  style={{ width: width * 0.86, height: width * 0.86 }}
+                  className="rounded-2xl bg-zinc-900 items-center justify-center border border-white/10"
                 >
-                  <Text className="text-zinc-600 font-bold text-4xl">ELX</Text>
+                  <Text className="text-zinc-600 font-extrabold text-4xl">ELX</Text>
                 </View>
               )}
             </View>
-          )}
-        </View>
 
-        {/* Bottom Metadata & Controls */}
-        <View className="mb-6">
-          {/* Track Info & Favorite Heart */}
-          <View className="flex-row items-center justify-between mb-4">
-            <View className="flex-1 mr-4">
-              <Text className="text-white font-bold text-2xl" numberOfLines={1}>
-                {currentTrack.title}
-              </Text>
-              <Text className="text-zinc-400 text-base mt-1" numberOfLines={1}>
-                {currentTrack.artist}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => toggleFavorite(currentTrack)}
-              className="w-11 h-11 items-center justify-center"
-            >
-              <Heart
-                size={24}
-                color={isFav ? '#ef4444' : '#71717a'}
-                fill={isFav ? '#ef4444' : 'transparent'}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Scrubber Progress Bar */}
-          <View className="my-2">
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={(e) => {
-                const { locationX } = e.nativeEvent;
-                const barWidth = width - 48; // px-6 is 24 on each side
-                const seekFraction = Math.max(0, Math.min(1, locationX / barWidth));
-                seekTo(seekFraction * duration);
-              }}
-              className="h-6 justify-center"
-            >
-              <View className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <View
-                  className="h-full bg-white rounded-full"
-                  style={{ width: `${progressPercent}%` }}
-                />
+            {/* Title, Artist & Favorite */}
+            <View className="flex-row items-center justify-between mt-6 mb-4">
+              <View className="flex-1 mr-4">
+                <Text className="text-white font-extrabold text-2xl" numberOfLines={1}>
+                  {currentTrack.title}
+                </Text>
+                <Text className="text-zinc-400 text-base font-medium mt-1" numberOfLines={1}>
+                  {currentTrack.artist}
+                </Text>
               </View>
-            </TouchableOpacity>
 
-            <View className="flex-row justify-between mt-1">
-              <Text className="text-zinc-500 text-xs">{formatTime(position)}</Text>
-              <Text className="text-zinc-500 text-xs">
-                {duration > 0 ? formatTime(duration) : '--:--'}
-              </Text>
+              <TouchableOpacity
+                onPress={() => toggleFavorite(currentTrack)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                className="w-11 h-11 items-center justify-center"
+              >
+                <Heart
+                  size={26}
+                  color={isFav ? '#22c55e' : '#ffffff'}
+                  fill={isFav ? '#22c55e' : 'transparent'}
+                />
+              </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Media Controls */}
-          <View className="flex-row items-center justify-between mt-4 px-2">
-            {/* Playback Mode (Shuffle / Repeat) */}
-            <TouchableOpacity
-              onPress={cyclePlaybackMode}
-              className="w-10 h-10 items-center justify-center"
-            >
-              {playbackMode === 'repeat-one' ? (
-                <Repeat1 size={20} color="#38bdf8" />
-              ) : playbackMode === 'shuffle' ? (
-                <Shuffle size={20} color="#38bdf8" />
-              ) : playbackMode === 'repeat-all' ? (
-                <Repeat size={20} color="#38bdf8" />
-              ) : (
-                <Repeat size={20} color="#71717a" />
-              )}
-            </TouchableOpacity>
+            {/* Scrubber Progress Bar */}
+            <View className="my-2">
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={(e) => {
+                  const { locationX } = e.nativeEvent;
+                  const barWidth = width - 48;
+                  const seekFraction = Math.max(0, Math.min(1, locationX / barWidth));
+                  seekTo(seekFraction * duration);
+                }}
+                className="h-6 justify-center"
+              >
+                <View className="h-1 bg-white/20 rounded-full overflow-hidden">
+                  <View
+                    className="h-full bg-white rounded-full"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </View>
+              </TouchableOpacity>
 
-            {/* Skip Previous */}
-            <TouchableOpacity
-              onPress={skipPrevious}
-              className="w-12 h-12 items-center justify-center"
-            >
-              <SkipBack size={26} color="#ffffff" fill="#ffffff" />
-            </TouchableOpacity>
+              <View className="flex-row justify-between mt-1">
+                <Text className="text-zinc-400 text-xs font-mono">{formatTime(position)}</Text>
+                <Text className="text-zinc-400 text-xs font-mono">
+                  {duration > 0 ? formatTime(duration) : '--:--'}
+                </Text>
+              </View>
+            </View>
 
-            {/* Play / Pause Main Button */}
-            <TouchableOpacity
-              onPress={togglePlayPause}
-              className="w-[72px] h-[72px] rounded-full bg-white items-center justify-center shadow-lg active:scale-95"
-            >
-              {isPlaying ? (
-                <Pause size={30} color="#000000" fill="#000000" />
-              ) : (
-                <Play size={30} color="#000000" fill="#000000" className="ml-1" />
-              )}
-            </TouchableOpacity>
+            {/* Primary Media Controls */}
+            <View className="flex-row items-center justify-between mt-4 px-1">
+              {/* Shuffle Toggle */}
+              <TouchableOpacity
+                onPress={cyclePlaybackMode}
+                className="w-10 h-10 items-center justify-center"
+              >
+                <Shuffle
+                  size={22}
+                  color={playbackMode === 'shuffle' ? '#22c55e' : '#a1a1aa'}
+                />
+              </TouchableOpacity>
 
-            {/* Skip Next */}
-            <TouchableOpacity
-              onPress={skipNext}
-              className="w-12 h-12 items-center justify-center"
-            >
-              <SkipForward size={26} color="#ffffff" fill="#ffffff" />
-            </TouchableOpacity>
+              {/* Skip Previous */}
+              <TouchableOpacity
+                onPress={skipPrevious}
+                className="w-12 h-12 items-center justify-center"
+              >
+                <SkipBack size={28} color="#ffffff" fill="#ffffff" />
+              </TouchableOpacity>
 
-            {/* Lyrics toggle button on bottom right */}
-            <TouchableOpacity
-              onPress={() => setShowLyrics(!showLyrics)}
-              className="w-10 h-10 items-center justify-center rounded-full bg-white/10"
-            >
-              <FileText size={18} color={showLyrics ? '#38bdf8' : '#ffffff'} />
-            </TouchableOpacity>
-          </View>
-        </View>
+              {/* Main Play / Pause Circle */}
+              <TouchableOpacity
+                onPress={togglePlayPause}
+                activeOpacity={0.85}
+                className="w-[72px] h-[72px] rounded-full bg-white items-center justify-center shadow-2xl active:scale-95"
+              >
+                {isPlaying ? (
+                  <Pause size={30} color="#000000" fill="#000000" />
+                ) : (
+                  <Play size={30} color="#000000" fill="#000000" className="ml-1" />
+                )}
+              </TouchableOpacity>
+
+              {/* Skip Next */}
+              <TouchableOpacity
+                onPress={skipNext}
+                className="w-12 h-12 items-center justify-center"
+              >
+                <SkipForward size={28} color="#ffffff" fill="#ffffff" />
+              </TouchableOpacity>
+
+              {/* Repeat Mode */}
+              <TouchableOpacity
+                onPress={cyclePlaybackMode}
+                className="w-10 h-10 items-center justify-center"
+              >
+                {playbackMode === 'repeat-one' ? (
+                  <Repeat1 size={22} color="#22c55e" />
+                ) : playbackMode === 'repeat-all' ? (
+                  <Repeat size={22} color="#22c55e" />
+                ) : (
+                  <Repeat size={22} color="#a1a1aa" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Auxiliary Tools: Cast & Sharing */}
+            <View className="flex-row items-center justify-between mt-6 px-1">
+              <TouchableOpacity className="w-10 h-10 items-center justify-center">
+                <Cast size={20} color="#a1a1aa" />
+              </TouchableOpacity>
+
+              <View className="flex-row items-center space-x-3">
+                <TouchableOpacity className="w-10 h-10 items-center justify-center">
+                  <Share2 size={20} color="#a1a1aa" />
+                </TouchableOpacity>
+                <TouchableOpacity className="w-10 h-10 items-center justify-center">
+                  <ListMusic size={22} color="#a1a1aa" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* SPOTIFY-STYLE IN-PLAYER LIVE LYRICS PREVIEW CARD */}
+            {/* Crucial Rule: Render ONLY when lyrics actually exist! */}
+            {hasLyrics ? (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => setShowFullLyrics(true)}
+                className="mt-8 rounded-3xl bg-[#1e3a8a]/80 border border-blue-400/20 p-5 shadow-2xl"
+              >
+                {/* Header */}
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="text-white font-bold text-base">
+                    Bản xem trước lời bài hát
+                  </Text>
+                  <ArrowUpRight size={18} color="#ffffff" />
+                </View>
+
+                {/* Live Synced Lyric Lines */}
+                <View className="my-2 space-y-1">
+                  {previewLines.map((line, idx) => {
+                    const isLineActive = previewStart + idx === activeIndex;
+                    return (
+                      <Text
+                        key={line.id || idx}
+                        numberOfLines={2}
+                        className={`leading-snug ${
+                          isLineActive
+                            ? 'text-white font-extrabold text-xl py-1'
+                            : 'text-white/60 font-semibold text-base py-0.5'
+                        }`}
+                      >
+                        {line.text}
+                      </Text>
+                    );
+                  })}
+                </View>
+
+                {/* Pill Button: Hiện lời bài hát */}
+                <View className="self-start mt-4">
+                  <View className="px-5 py-2 rounded-full bg-white shadow">
+                    <Text className="text-black font-bold text-sm">
+                      Hiện lời bài hát
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ) : null}
+          </ScrollView>
+        )}
       </SafeAreaView>
     </View>
   );
 };
-

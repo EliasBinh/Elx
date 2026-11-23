@@ -4,6 +4,41 @@ import { SearchResultItem, TrackInfo } from '../types';
 let innertubeInstance: Innertube | null = null;
 let initPromise: Promise<Innertube> | null = null;
 
+// In-memory stream URL cache: videoId -> { url, expiresAt }
+interface CachedStream {
+  url: string;
+  expiresAt: number;
+}
+const streamCache = new Map<string, CachedStream>();
+
+export function getCachedStreamUrl(videoId: string): string | null {
+  const item = streamCache.get(videoId);
+  if (item && Date.now() < item.expiresAt) {
+    return item.url;
+  }
+  return null;
+}
+
+export function cacheStreamUrl(videoId: string, url: string) {
+  // Cache for 4 hours (YouTube stream URLs are valid for ~6 hours)
+  streamCache.set(videoId, {
+    url,
+    expiresAt: Date.now() + 4 * 3600 * 1000,
+  });
+}
+
+/**
+ * Pre-fetches audio stream URL in the background for instant track transition.
+ */
+export async function prefetchTrackAudioStreamUrl(videoId: string): Promise<void> {
+  if (!videoId || getCachedStreamUrl(videoId)) return;
+  try {
+    await getTrackAudioStreamUrl(videoId);
+  } catch {
+    // ignore
+  }
+}
+
 export async function getInnertube(): Promise<Innertube> {
   if (innertubeInstance) return innertubeInstance;
   if (initPromise) return initPromise;
@@ -144,12 +179,16 @@ const IOS_CONFIGS: IOSClientConfig[] = [
 
 /**
  * Resolves direct high-quality playable audio stream URL.
- * Employs a multi-tier resolution strategy:
- * Tier 1: Direct YouTube Innertube iOS player endpoints (unthrottled, unencrypted direct HTTPS audio streams)
- * Tier 2: Built-in Innertube player action execution
- * Tier 3: Resilient Piped streaming API instances
+ * Checks in-memory cache first for instant sub-second playback.
  */
 export async function getTrackAudioStreamUrl(videoId: string): Promise<string | null> {
+  // Check memory cache for instant (0ms) playback!
+  const cached = getCachedStreamUrl(videoId);
+  if (cached) {
+    console.log(`[AudioStream] Returning cached stream URL for ${videoId}`);
+    return cached;
+  }
+
   console.log(`[AudioStream] Resolving stream for videoId: ${videoId}`);
 
   // TIER 1: Direct YouTube Player API with iOS Client Configurations
@@ -208,6 +247,7 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
         console.log(
           `[AudioStream] Successfully resolved via iOS ${cfg.version} (itag=${chosen.itag}, bitrate=${chosen.bitrate})`
         );
+        cacheStreamUrl(videoId, chosen.url);
         return chosen.url;
       }
     } catch (e: any) {
@@ -238,6 +278,7 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
         return (b.bitrate || 0) - (a.bitrate || 0);
       });
       console.log('[AudioStream] Resolved via Innertube iOS player execution');
+      cacheStreamUrl(videoId, audioFormats[0].url);
       return audioFormats[0].url;
     }
   } catch (err: any) {
@@ -262,9 +303,9 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
       const valid = streams.filter((s: any) => !!s.url);
 
       if (valid.length > 0) {
-        // Sort highest quality first
         valid.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
         console.log(`[AudioStream] Resolved via Piped instance: ${inst}`);
+        cacheStreamUrl(videoId, valid[0].url);
         return valid[0].url;
       }
     } catch {

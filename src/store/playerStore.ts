@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import TrackPlayer from 'react-native-track-player';
 import { LyricsData, PlaybackMode, TrackInfo } from '../types';
-import { getTrackAudioStreamUrl, getRelatedTracks } from '../services/youtube';
+import { getTrackAudioStreamUrl, getRelatedTracks, prefetchTrackAudioStreamUrl } from '../services/youtube';
 import { fetchLyricsFromLrcLib } from '../services/lyrics/lyricsService';
 import { setupPlayer } from '../services/playerInit';
 import { useStatsStore } from './statsStore';
 import { analytics } from '../services/analytics';
 import { showToast } from '../components/Toast';
+
+let playerInitialized = false;
 
 interface PlayerState {
   currentTrack: TrackInfo | null;
@@ -41,7 +43,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   playTrack: async (track: TrackInfo, queue?: TrackInfo[]) => {
     try {
       set({ isLoading: true, currentTrack: track, lyrics: null });
-      await setupPlayer();
+      if (!playerInitialized) {
+        await setupPlayer();
+        playerInitialized = true;
+      }
 
       const newQueue = queue && queue.length > 0 ? queue : [track];
       const index = newQueue.findIndex((t) => t.id === track.id);
@@ -51,7 +56,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         queueIndex: index >= 0 ? index : 0,
       });
 
-      // Resolve direct audio stream URL
+      // Resolve direct audio stream URL (uses cache if pre-fetched!)
       const streamUrl = await getTrackAudioStreamUrl(track.id);
       if (!streamUrl) {
         throw new Error('Stream URL unavailable');
@@ -75,6 +80,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
       await TrackPlayer.play();
       set({ isPlaying: true, isLoading: false });
+
+      // Pre-fetch the NEXT tracks in queue for instant sub-second skips!
+      const nextIdx = (index >= 0 ? index : 0) + 1;
+      if (nextIdx < newQueue.length) {
+        prefetchTrackAudioStreamUrl(newQueue[nextIdx].id);
+        if (nextIdx + 1 < newQueue.length) {
+          prefetchTrackAudioStreamUrl(newQueue[nextIdx + 1].id);
+        }
+      }
 
       // Automatically track stats & analytics
       useStatsStore.getState().recordSongPlay(activeTrack);
