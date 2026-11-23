@@ -4,6 +4,9 @@ import { LyricsData, PlaybackMode, TrackInfo } from '../types';
 import { getTrackAudioStreamUrl, getRelatedTracks } from '../services/youtube';
 import { fetchLyricsFromLrcLib } from '../services/lyrics/lyricsService';
 import { setupPlayer } from '../services/playerInit';
+import { useStatsStore } from './statsStore';
+import { analytics } from '../services/analytics';
+import { showToast } from '../components/Toast';
 
 interface PlayerState {
   currentTrack: TrackInfo | null;
@@ -48,31 +51,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         queueIndex: index >= 0 ? index : 0,
       });
 
-      // Resolve audio stream
-      const streamUrl = await getTrackAudioStreamUrl(track.id);
-      if (!streamUrl) {
+      // Resolve audio stream with Android compatible headers
+      const streamData = await getTrackAudioStreamUrl(track.id);
+      if (!streamData || !streamData.url) {
         throw new Error('Could not resolve audio stream URL');
       }
 
-      const activeTrack = { ...track, streamUrl };
+      const activeTrack: TrackInfo = {
+        ...track,
+        streamUrl: streamData.url,
+        headers: streamData.headers,
+      };
       set({ currentTrack: activeTrack });
 
       await TrackPlayer.reset();
       await TrackPlayer.add({
         id: activeTrack.id,
-        url: streamUrl,
+        url: streamData.url,
         title: activeTrack.title,
         artist: activeTrack.artist,
         artwork: activeTrack.artwork,
         duration: activeTrack.duration,
+        ...(streamData.headers ? { headers: streamData.headers } : {}),
       });
 
       await TrackPlayer.play();
       set({ isPlaying: true, isLoading: false });
 
       // Automatically track stats & analytics
-      const { useStatsStore } = require('./statsStore');
-      const { analytics } = require('../services/analytics');
       useStatsStore.getState().recordSongPlay(activeTrack);
       analytics.trackSongPlayed(activeTrack);
 
@@ -90,6 +96,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     } catch (error) {
       console.error('Failed to play track:', error);
       set({ isLoading: false, isPlaying: false });
+      showToast(`Cannot play "${track.title}". Skipping...`);
+      // Auto-skip to next after short delay
+      setTimeout(() => {
+        get().skipNext();
+      }, 1500);
     }
   },
 
@@ -178,4 +189,3 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 }));
-

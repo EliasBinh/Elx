@@ -26,8 +26,13 @@ export const LibraryScreen: React.FC = () => {
     <SafeAreaView className="flex-1 bg-background">
       <View className="px-5 pt-4 pb-2">
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-white font-black text-2xl tracking-tight">FAVORITES</Text>
-          <Text className="text-zinc-500 font-mono text-xs">{favorites.length} tracks</Text>
+          <View>
+            <Text className="text-white font-black text-2xl tracking-tight">LIBRARY</Text>
+            <Text className="text-zinc-500 text-xs mt-0.5">Saved tracks & favorites</Text>
+          </View>
+          <View className="px-2.5 py-1 rounded-full bg-zinc-800">
+            <Text className="text-zinc-400 font-mono text-xs">{favorites.length} tracks</Text>
+          </View>
         </View>
       </View>
 

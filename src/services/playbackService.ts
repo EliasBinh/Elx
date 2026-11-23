@@ -1,4 +1,8 @@
 import TrackPlayer, { Event } from 'react-native-track-player';
+import { useStatsStore } from '../store/statsStore';
+import { usePlayerStore } from '../store/playerStore';
+
+let activeTrackStartTime = 0;
 
 /**
  * Headless background playback service required by react-native-track-player.
@@ -18,15 +22,40 @@ export async function PlaybackService() {
   });
 
   TrackPlayer.addEventListener(Event.RemoteNext, () => {
-    TrackPlayer.skipToNext();
+    usePlayerStore.getState().skipNext();
   });
 
   TrackPlayer.addEventListener(Event.RemotePrevious, () => {
-    TrackPlayer.skipToPrevious();
+    usePlayerStore.getState().skipPrevious();
   });
 
   TrackPlayer.addEventListener(Event.RemoteSeek, (event) => {
     TrackPlayer.seekTo(event.position);
+  });
+
+  // Track real listening time across sessions
+  TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async () => {
+    if (activeTrackStartTime > 0) {
+      const elapsedMs = Date.now() - activeTrackStartTime;
+      const elapsedSec = Math.floor(elapsedMs / 1000);
+      if (elapsedSec >= 5) {
+        useStatsStore.getState().recordListeningTime(elapsedSec);
+      }
+    }
+    activeTrackStartTime = Date.now();
+  });
+
+  // Auto-advance when queue track finishes
+  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
+    usePlayerStore.getState().skipNext();
+  });
+
+  // Playback error recovery
+  TrackPlayer.addEventListener(Event.PlaybackError, (error) => {
+    console.error('TrackPlayer background error:', error);
+    setTimeout(() => {
+      usePlayerStore.getState().skipNext();
+    }, 1500);
   });
 
   // Audio Focus & Ducking (Samsung & Android calls/notifications)

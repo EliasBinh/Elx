@@ -1,25 +1,38 @@
 import { Platform, Alert, Linking } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const BATTERY_OPT_DISMISSED_KEY = '@elx_battery_opt_dismissed';
 
 /**
- * Checks and prompts user on Android (especially Samsung One UI)
- * to disable aggressive battery optimization for seamless background audio.
+ * Prompts user on Android (especially Samsung One UI) ONCE to disable
+ * aggressive battery optimization for uninterrupted background playback.
+ * Remembers decision in AsyncStorage so it NEVER loops on subsequent app launches.
  */
 export async function checkAndPromptBatteryOptimization() {
   if (Platform.OS !== 'android') return;
 
   try {
+    const dismissed = await AsyncStorage.getItem(BATTERY_OPT_DISMISSED_KEY);
+    if (dismissed === 'true') {
+      return;
+    }
+
     Alert.alert(
-      "Background Playback Optimization",
-      "To ensure uninterrupted playback when the screen is locked or while multitasking, allow Elx to run without battery restrictions.",
+      "Background Playback",
+      "For uninterrupted music playback when the screen is locked, allow Elx to run without battery restrictions.",
       [
         {
-          text: "Later",
+          text: "Don't show again",
           style: "cancel",
+          onPress: async () => {
+            await AsyncStorage.setItem(BATTERY_OPT_DISMISSED_KEY, 'true');
+          },
         },
         {
           text: "Settings",
           onPress: async () => {
+            await AsyncStorage.setItem(BATTERY_OPT_DISMISSED_KEY, 'true');
             try {
               await IntentLauncher.startActivityAsync(
                 IntentLauncher.ActivityAction.IGNORE_BATTERY_OPTIMIZATION_SETTINGS
@@ -32,6 +45,6 @@ export async function checkAndPromptBatteryOptimization() {
       ]
     );
   } catch (err) {
-    console.warn('Could not launch battery optimization settings', err);
+    // Silently ignore
   }
 }
