@@ -38,28 +38,36 @@ jobs:
       - name: Make Gradlew Executable
         run: chmod +x android/gradlew
 
-      - name: Build Android Release APK
+      - name: Build Android Release and Debug APKs
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease assembleDebug --no-daemon --stacktrace
 
-      - name: Locate and Prepare Release APK
+      - name: Locate and Prepare Release and Debug APKs
         id: prepare_apk
         run: |
-          APK_PATH=$(find android/app/build/outputs/apk/ -name "*.apk" | head -n 1)
-          if [ -z "$APK_PATH" ]; then
-            echo "Error: No APK file generated!"
+          RELEASE_PATH=$(find android/app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+          DEBUG_PATH=$(find android/app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+          if [ -z "$RELEASE_PATH" ]; then
+            echo "Error: Release APK not found!"
             exit 1
           fi
-          echo "Found APK at: $APK_PATH"
-          cp "$APK_PATH" elx.apk
-          echo "apk_path=elx.apk" >> $GITHUB_OUTPUT
+          if [ -z "$DEBUG_PATH" ]; then
+            echo "Error: Debug APK not found!"
+            exit 1
+          fi
+          echo "Found Release APK at: $RELEASE_PATH"
+          echo "Found Debug APK at: $DEBUG_PATH"
+          cp "$RELEASE_PATH" elx.apk
+          cp "$DEBUG_PATH" elx-debug.apk
 
-      - name: Upload Release Asset to GitHub Releases
+      - name: Upload Release and Debug Assets to GitHub Releases
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
-          files: elx.apk
+          files: |
+            elx.apk
+            elx-debug.apk
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
