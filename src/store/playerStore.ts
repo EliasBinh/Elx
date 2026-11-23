@@ -7,6 +7,7 @@ import { setupPlayer } from '../services/playerInit';
 import { useStatsStore } from './statsStore';
 import { analytics } from '../services/analytics';
 import { showToast } from '../components/Toast';
+import { getCachedAudioUri, preloadAudioToDisk } from '../services/audioCache';
 
 let playerInitialized = false;
 
@@ -56,22 +57,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         queueIndex: index >= 0 ? index : 0,
       });
 
-      // Resolve direct audio stream URL (uses cache if pre-fetched!)
-      const streamUrl = await getTrackAudioStreamUrl(track.id);
-      if (!streamUrl) {
-        throw new Error('Stream URL unavailable');
+      // 1. Check local disk cache first for instant 0s playback!
+      const cachedLocalUri = await getCachedAudioUri(track.id);
+      let playableUrl = cachedLocalUri;
+
+      if (!playableUrl) {
+        // Resolve direct audio stream URL (uses fast memory cache if pre-fetched!)
+        const streamUrl = await getTrackAudioStreamUrl(track.id);
+        if (!streamUrl) {
+          throw new Error('Stream URL unavailable');
+        }
+        playableUrl = streamUrl;
+
+        // Predictive Pre-Buffering: Cache to local disk in background for future instant plays
+        preloadAudioToDisk(track.id, streamUrl).catch(() => {});
+      } else {
+        console.log(`[PlayerStore] Playing directly from local disk cache for ${track.id}`);
       }
 
       const activeTrack: TrackInfo = {
         ...track,
-        streamUrl,
+        streamUrl: playableUrl,
       };
       set({ currentTrack: activeTrack });
 
       await TrackPlayer.reset();
       await TrackPlayer.add({
         id: activeTrack.id,
-        url: streamUrl,
+        url: playableUrl,
         title: activeTrack.title,
         artist: activeTrack.artist,
         artwork: activeTrack.artwork,

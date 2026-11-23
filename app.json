@@ -2,7 +2,7 @@
   "expo": {
     "name": "Elx",
     "slug": "elx",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.eliasbinh.elx",
-      "versionCode": 11,
+      "versionCode": 12,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#09090b"

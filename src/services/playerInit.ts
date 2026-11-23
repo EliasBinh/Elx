@@ -11,6 +11,14 @@ export async function setupPlayer(): Promise<boolean> {
   try {
     await TrackPlayer.setupPlayer({
       autoHandleInterruptions: true,
+      // 512MB ExoPlayer SimpleCache on Android for zero-data repeat playback
+      maxCacheSize: 512 * 1024,
+      // Fast start: start playback after only 0.8s buffered (default is 2.5s)
+      playBuffer: 0.8,
+      // Buffer parameters: keep 30s-90s ahead, 20s behind for smooth scrub
+      minBuffer: 30,
+      maxBuffer: 90,
+      backBuffer: 20,
     });
 
     await TrackPlayer.updateOptions({

@@ -1,5 +1,6 @@
 import { Innertube, UniversalCache } from 'youtubei.js/react-native';
 import { SearchResultItem, TrackInfo } from '../types';
+import { getCachedAudioUri, preloadAudioToDisk } from './audioCache';
 
 let innertubeInstance: Innertube | null = null;
 let initPromise: Promise<Innertube> | null = null;
@@ -52,16 +53,18 @@ async function fetchWithTimeout(
 }
 
 /**
- * Pre-fetches audio stream URL in the background for instant track transition.
- * Pre-warms the CDN edge socket with a lightweight range pre-buffer.
+ * Pre-fetches audio stream URL and predictively pre-buffers track to local disk cache.
  */
 export async function prefetchTrackAudioStreamUrl(videoId: string): Promise<void> {
-  if (!videoId || getCachedStreamUrl(videoId)) return;
+  if (!videoId) return;
   try {
+    const alreadyOnDisk = await getCachedAudioUri(videoId);
+    if (alreadyOnDisk) return;
+
     const streamUrl = await getTrackAudioStreamUrl(videoId);
     if (streamUrl) {
-      // Warm up CDN connection & socket with initial chunk
-      fetchWithTimeout(streamUrl, { headers: { Range: 'bytes=0-65535' } }, 2000).catch(() => {});
+      // Predictive Pre-Buffering: Pre-download to disk cache in background
+      preloadAudioToDisk(videoId, streamUrl).catch(() => {});
     }
   } catch {
     // ignore background prefetch errors
