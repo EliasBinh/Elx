@@ -7,10 +7,11 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
-import { Search, Flame, Clock, MoreVertical, Play, Music, Cast } from 'lucide-react-native';
+import { Search, Flame, Clock, MoreVertical, Play, Music, Cast, ArrowDownCircle } from 'lucide-react-native';
 import { LinerLogo } from '../components/LinerLogo';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
+import { useDownloadStore } from '../store/downloadStore';
 import { TrackInfo } from '../types';
 
 // Real verified YouTube tracks matching Liner Desktop showcase
@@ -127,6 +128,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenSearch }) => {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const addToHistory = useLibraryStore((s) => s.addToHistory);
   const history = useLibraryStore((s) => s.history);
+  const isDownloaded = useDownloadStore((s) => s.isDownloaded);
 
   const handlePlay = (item: TrackInfo) => {
     addToHistory(item);
@@ -184,6 +186,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenSearch }) => {
           <View className="bg-card border border-zinc-800/80 rounded-2xl p-2.5">
             {FEATURED_TRACKS.map((item) => {
               const isPlayingThis = currentTrack?.id === item.id;
+              const downloaded = isDownloaded(item.id);
               return (
                 <TouchableOpacity
                   key={item.id}
@@ -204,9 +207,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenSearch }) => {
                     >
                       {item.title}
                     </Text>
-                    <Text className="text-zinc-400 text-xs mt-0.5" numberOfLines={1}>
-                      {item.artist}
-                    </Text>
+                    <View className="flex-row items-center mt-0.5">
+                      {downloaded ? (
+                        <View className="mr-1">
+                          <ArrowDownCircle size={12} color="#000000" fill="#22c55e" />
+                        </View>
+                      ) : null}
+                      <Text className="text-zinc-400 text-xs" numberOfLines={1}>
+                        {item.artist}
+                      </Text>
+                    </View>
                   </View>
 
                   <Text className="text-zinc-500 text-xs font-mono mr-2">

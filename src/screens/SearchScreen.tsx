@@ -19,10 +19,12 @@ import {
   ArrowLeft,
   Check,
   Cast,
+  ArrowDownCircle,
 } from 'lucide-react-native';
 import { searchTracks } from '../services/youtube';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
+import { useDownloadStore } from '../store/downloadStore';
 import { SearchResultItem, TrackInfo } from '../types';
 import { LinerLogo } from '../components/LinerLogo';
 
@@ -150,6 +152,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
   const playTrack = usePlayerStore((s) => s.playTrack);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const addToHistory = useLibraryStore((s) => s.addToHistory);
+  const isDownloaded = useDownloadStore((s) => s.isDownloaded);
 
   useEffect(() => {
     loadRecentSearches();
@@ -520,9 +523,16 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
                     >
                       {item.title}
                     </Text>
-                    <Text className="text-zinc-400 text-xs mt-0.5" numberOfLines={1}>
-                      {item.artist}
-                    </Text>
+                    <View className="flex-row items-center mt-0.5">
+                      {isDownloaded(item.id) ? (
+                        <View className="mr-1">
+                          <ArrowDownCircle size={12} color="#000000" fill="#22c55e" />
+                        </View>
+                      ) : null}
+                      <Text className="text-zinc-400 text-xs" numberOfLines={1}>
+                        {item.artist}
+                      </Text>
+                    </View>
                   </View>
 
                   <Text className="text-zinc-500 text-xs font-mono mr-2">

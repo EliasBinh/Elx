@@ -31,9 +31,12 @@ import {
   Trash2,
   X,
   Volume2,
+  ArrowDownCircle,
 } from 'lucide-react-native';
+import { ActivityIndicator, Alert } from 'react-native';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
+import { useDownloadStore } from '../store/downloadStore';
 import { SyncedLyricsView } from '../components/lyrics/SyncedLyricsView';
 import { PlaybackMode, TrackInfo } from '../types';
 
@@ -60,6 +63,11 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
   const favorites = useLibraryStore((s) => s.favorites);
   const toggleFavorite = useLibraryStore((s) => s.toggleFavorite);
 
+  const isDownloaded = useDownloadStore((s) => s.isDownloaded);
+  const isDownloading = useDownloadStore((s) => s.isDownloading);
+  const downloadTrack = useDownloadStore((s) => s.downloadTrack);
+  const removeDownload = useDownloadStore((s) => s.removeDownload);
+
   const [showFullWordly, setShowFullWordly] = useState(false);
   const [showQueueModal, setShowQueueModal] = useState(false);
 
@@ -68,6 +76,27 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
   if (!currentTrack) return null;
 
   const isFav = favorites.some((f) => f.id === currentTrack.id);
+  const isDownloadedThis = isDownloaded(currentTrack.id);
+  const isDownloadingThis = isDownloading(currentTrack.id);
+
+  const handleDownloadToggle = () => {
+    if (isDownloadedThis) {
+      Alert.alert(
+        'Remove Download',
+        `Remove "${currentTrack.title}" from your downloaded tracks?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: () => removeDownload(currentTrack.id),
+          },
+        ]
+      );
+    } else {
+      downloadTrack(currentTrack);
+    }
+  };
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -304,13 +333,28 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Liner-Style Auxiliary Toolbar: Cast, Share, Queue, Wordly */}
+            {/* Liner-Style Auxiliary Toolbar: Cast, Download, Share, Queue, Wordly */}
             <View className="flex-row items-center justify-between mt-6 px-1">
               <TouchableOpacity className="w-10 h-10 items-center justify-center">
                 <Cast size={20} color="#a1a1aa" />
               </TouchableOpacity>
 
               <View className="flex-row items-center space-x-3">
+                {/* Spotify-Style Offline Download Button */}
+                <TouchableOpacity
+                  onPress={handleDownloadToggle}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  className="w-10 h-10 items-center justify-center"
+                >
+                  {isDownloadingThis ? (
+                    <ActivityIndicator size="small" color="#22c55e" />
+                  ) : isDownloadedThis ? (
+                    <ArrowDownCircle size={22} color="#000000" fill="#22c55e" />
+                  ) : (
+                    <ArrowDownCircle size={22} color="#a1a1aa" />
+                  )}
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   onPress={() => setShowQueueModal(true)}
                   className="w-10 h-10 items-center justify-center"

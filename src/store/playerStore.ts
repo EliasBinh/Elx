@@ -8,6 +8,7 @@ import { useStatsStore } from './statsStore';
 import { analytics } from '../services/analytics';
 import { showToast } from '../components/Toast';
 import { getCachedAudioUri, preloadAudioToDisk } from '../services/audioCache';
+import { useDownloadStore } from './downloadStore';
 
 let playerInitialized = false;
 
@@ -57,27 +58,38 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         queueIndex: index >= 0 ? index : 0,
       });
 
-      // 1. Check local disk cache first for instant 0s playback!
-      const cachedLocalUri = await getCachedAudioUri(track.id);
-      let playableUrl = cachedLocalUri;
+      // 1. Check permanent offline downloads first!
+      const downloadStore = useDownloadStore.getState();
+      let playableUrl: string | null = null;
+      let effectiveArtwork = track.artwork;
 
-      if (!playableUrl) {
-        // Resolve direct audio stream URL (uses fast memory cache if pre-fetched!)
-        const streamUrl = await getTrackAudioStreamUrl(track.id);
-        if (!streamUrl) {
-          throw new Error('Stream URL unavailable');
+      if (downloadStore.isDownloaded(track.id)) {
+        playableUrl = downloadStore.getOfflineTrackPath(track.id);
+        const matchingDownload = downloadStore.downloads.find((d) => d.id === track.id);
+        if (matchingDownload?.artwork) {
+          effectiveArtwork = matchingDownload.artwork;
         }
-        playableUrl = streamUrl;
-
-        // Predictive Pre-Buffering: Cache to local disk in background for future instant plays
-        preloadAudioToDisk(track.id, streamUrl).catch(() => {});
+        console.log(`[PlayerStore] Playing from offline downloaded storage for ${track.id}`);
       } else {
-        console.log(`[PlayerStore] Playing directly from local disk cache for ${track.id}`);
+        // 2. Check local LRU disk cache
+        const cachedLocalUri = await getCachedAudioUri(track.id);
+        if (cachedLocalUri) {
+          playableUrl = cachedLocalUri;
+          console.log(`[PlayerStore] Playing directly from local disk cache for ${track.id}`);
+        } else {
+          // 3. Resolve direct audio stream URL
+          const streamUrl = await getTrackAudioStreamUrl(track.id);
+          if (!streamUrl) {
+            throw new Error('Stream URL unavailable');
+          }
+          playableUrl = streamUrl;
+        }
       }
 
       const activeTrack: TrackInfo = {
         ...track,
         streamUrl: playableUrl,
+        artwork: effectiveArtwork,
       };
       set({ currentTrack: activeTrack });
 

@@ -12,6 +12,7 @@ import { Toast } from './src/components/Toast';
 import { setupPlayer } from './src/services/playerInit';
 import { useLibraryStore } from './src/store/libraryStore';
 import { useStatsStore } from './src/store/statsStore';
+import { useDownloadStore } from './src/store/downloadStore';
 import { checkForUpdate, UpdateCheckResult } from './src/services/updater';
 import { checkAndPromptBatteryOptimization } from './src/services/samsungOptimizer';
 
@@ -23,6 +24,7 @@ export default function App() {
 
   const loadLibrary = useLibraryStore((s) => s.loadLibrary);
   const loadStats = useStatsStore((s) => s.loadStats);
+  const loadDownloads = useDownloadStore((s) => s.loadDownloads);
 
   useEffect(() => {
     // 1. Initialize Audio Player Service
@@ -31,6 +33,7 @@ export default function App() {
     // 2. Load stored favorites, history & listening stats
     loadLibrary();
     loadStats();
+    loadDownloads();
 
     // 3. Proactive one-time check for Samsung / Android battery optimization
     checkAndPromptBatteryOptimization();

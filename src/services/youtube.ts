@@ -54,19 +54,13 @@ async function fetchWithTimeout(
 }
 
 /**
- * Pre-fetches audio stream URL and predictively pre-buffers track to local disk cache.
+ * Pre-fetches audio stream URL into memory cache for instant zero-latency skips.
+ * Does NOT choke network bandwidth with heavy parallel background downloads.
  */
 export async function prefetchTrackAudioStreamUrl(videoId: string): Promise<void> {
-  if (!videoId) return;
+  if (!videoId || getCachedStreamUrl(videoId)) return;
   try {
-    const alreadyOnDisk = await getCachedAudioUri(videoId);
-    if (alreadyOnDisk) return;
-
-    const streamUrl = await getTrackAudioStreamUrl(videoId);
-    if (streamUrl) {
-      // Predictive Pre-Buffering: Pre-download to disk cache in background
-      preloadAudioToDisk(videoId, streamUrl).catch(() => {});
-    }
+    await getTrackAudioStreamUrl(videoId);
   } catch {
     // ignore background prefetch errors
   }
