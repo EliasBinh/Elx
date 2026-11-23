@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system';
 
 const CACHE_FOLDER = `${FileSystem.cacheDirectory}audio_cache/`;
-const MAX_CACHE_BYTES = 400 * 1024 * 1024; // 400 MB cap
+const MAX_CACHE_BYTES = 1024 * 1024 * 1024; // 1 GB disk cache cap
 
 // Tracks currently being downloaded to prevent redundant parallel downloads
 const activeDownloads = new Map<string, Promise<string | null>>();
@@ -141,3 +141,4 @@ async function pruneCacheIfNeeded(): Promise<void> {
     console.warn('[AudioCache] Cache pruning error:', err);
   }
 }
+
