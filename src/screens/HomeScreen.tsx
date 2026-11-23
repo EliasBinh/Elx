@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { useDownloadStore } from '../store/downloadStore';
 import { TrackInfo } from '../types';
+import { prefetchTrackAudioStreamUrl } from '../services/youtube';
 
 // Real verified YouTube tracks matching Liner Desktop showcase
 const FEATURED_TRACKS: TrackInfo[] = [
@@ -129,6 +130,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenSearch }) => {
   const addToHistory = useLibraryStore((s) => s.addToHistory);
   const history = useLibraryStore((s) => s.history);
   const isDownloaded = useDownloadStore((s) => s.isDownloaded);
+
+  useEffect(() => {
+    // Pre-resolve stream URLs for top featured tracks for 0ms instant playback on tap!
+    FEATURED_TRACKS.slice(0, 4).forEach((t) => {
+      prefetchTrackAudioStreamUrl(t.id);
+    });
+  }, []);
 
   const handlePlay = (item: TrackInfo) => {
     addToHistory(item);

@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   APP_NAME: "Elx",
-  VERSION: "1.1.5",
+  VERSION: "1.1.6",
   // GitHub Releases auto-updater repository
   DEFAULT_GITHUB_OWNER: "EliasBinh",
   DEFAULT_GITHUB_REPO: "Elx",
@@ -8,7 +8,7 @@ export const APP_CONFIG = {
   LRCLIB_API_URL: "https://lrclib.net/api",
   // Optional Global Edge Gateway (Cloudflare Worker)
   EDGE_GATEWAY_URL: "",
-  USER_AGENT: "Elx/1.1.5 (https://github.com/EliasBinh/Elx)",
+  USER_AGENT: "Elx/1.1.6 (https://github.com/EliasBinh/Elx)",
 };
 
 export const STORAGE_KEYS = {

@@ -21,7 +21,7 @@ import {
   Cast,
   ArrowDownCircle,
 } from 'lucide-react-native';
-import { searchTracks } from '../services/youtube';
+import { searchTracks, prefetchTrackAudioStreamUrl } from '../services/youtube';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { useDownloadStore } from '../store/downloadStore';
@@ -248,6 +248,10 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
     try {
       const items = await searchTracks(trimmed);
       setResults(items);
+      // Pre-resolve top 2 search results into memory for 0ms instant play on tap!
+      items.slice(0, 2).forEach((it) => {
+        prefetchTrackAudioStreamUrl(it.id);
+      });
     } catch (e) {
       console.warn('Search failed:', e);
       setResults([]);

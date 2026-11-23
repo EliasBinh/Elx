@@ -11,10 +11,10 @@ export async function setupPlayer(): Promise<boolean> {
   try {
     await TrackPlayer.setupPlayer({
       autoHandleInterruptions: true,
-      // Fast-start buffering: start playing after only 1.5s buffered (zero lag)
-      playBuffer: 1.5,
-      minBuffer: 15,
-      maxBuffer: 50,
+      // Instant-play: begin emitting sound after only 0.2s of audio buffered (zero lag)
+      playBuffer: 0.2,
+      minBuffer: 10,
+      maxBuffer: 40,
       backBuffer: 10,
     });
 
