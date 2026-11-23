@@ -18,6 +18,9 @@ export async function checkAndPromptBatteryOptimization() {
       return;
     }
 
+    // Mark as prompted immediately so it NEVER prompts repeatedly
+    await AsyncStorage.setItem(BATTERY_OPT_DISMISSED_KEY, 'true');
+
     Alert.alert(
       "Background Playback",
       "For uninterrupted music playback when the screen is locked, allow Elx to run without battery restrictions.",
@@ -25,14 +28,10 @@ export async function checkAndPromptBatteryOptimization() {
         {
           text: "Don't show again",
           style: "cancel",
-          onPress: async () => {
-            await AsyncStorage.setItem(BATTERY_OPT_DISMISSED_KEY, 'true');
-          },
         },
         {
           text: "Settings",
           onPress: async () => {
-            await AsyncStorage.setItem(BATTERY_OPT_DISMISSED_KEY, 'true');
             try {
               await IntentLauncher.startActivityAsync(
                 IntentLauncher.ActivityAction.IGNORE_BATTERY_OPTIMIZATION_SETTINGS

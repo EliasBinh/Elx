@@ -16,20 +16,17 @@ import {
   Search,
   X,
   Music,
-  Clock,
   ArrowLeft,
-  ArrowUpLeft,
   Check,
-  Plus,
-  Camera,
   Cast,
 } from 'lucide-react-native';
 import { searchTracks } from '../services/youtube';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { SearchResultItem, TrackInfo } from '../types';
+import { LinerLogo } from '../components/LinerLogo';
 
-const RECENT_SEARCHES_KEY = '@elx_recent_searches_v2';
+const RECENT_SEARCHES_KEY = '@elx_recent_searches_v3';
 
 interface RecentSearchItem {
   id: string;
@@ -52,22 +49,22 @@ interface GenreCategory {
 const GENRE_CATEGORIES: GenreCategory[] = [
   {
     id: 'upcoming',
-    title: 'Bản phát hành\nsắp ra mắt',
-    query: 'Bản phát hành mới',
+    title: 'Upcoming\nReleases',
+    query: 'New Music Releases',
     bgColor: '#15803d',
     image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&q=80',
   },
   {
     id: 'new_release',
-    title: 'Mới phát\nhành',
+    title: 'New\nReleases',
     query: 'New Music Friday',
     bgColor: '#4d7c0f',
     image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&q=80',
   },
   {
-    id: 'nhac_viet',
-    title: 'Nhạc\nViệt',
-    query: 'Nhạc Việt thịnh hành',
+    id: 'top_hits',
+    title: 'Top Hits\nTrending',
+    query: 'Today Top Hits',
     bgColor: '#0891b2',
     image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&q=80',
   },
@@ -94,42 +91,42 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 'rnb',
-    title: 'R&B',
+    title: 'R&B &\nSoul',
     query: 'R&B chill',
     bgColor: '#7c3aed',
     image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&q=80',
   },
   {
     id: 'chill',
-    title: 'Chill',
+    title: 'Chill &\nAcoustic',
     query: 'Chill vibes acoustic',
     bgColor: '#4338ca',
     image: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=300&q=80',
   },
   {
     id: 'party',
-    title: 'Party',
+    title: 'Party &\nDance',
     query: 'Party dance EDM',
     bgColor: '#c026d3',
     image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=300&q=80',
   },
   {
     id: 'workout',
-    title: 'Workout',
+    title: 'Workout &\nGym',
     query: 'Gym motivation workout',
     bgColor: '#b91c1c',
     image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=300&q=80',
   },
   {
     id: 'rock',
-    title: 'Rock',
+    title: 'Rock &\nMetal',
     query: 'Rock metal classics',
     bgColor: '#475569',
     image: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=300&q=80',
   },
   {
     id: 'indie',
-    title: 'Indie',
+    title: 'Indie &\nLofi',
     query: 'Indie lofi songs',
     bgColor: '#be185d',
     image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=300&q=80',
@@ -146,7 +143,6 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
 
   const inputRef = useRef<TextInput | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -165,12 +161,11 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
       if (dataStr) {
         setRecentSearches(JSON.parse(dataStr));
       } else {
-        // Seed initial popular suggestions matching Spotify screenshot
         const seedItems: RecentSearchItem[] = [
           {
             id: 'daniel_caesar',
             title: 'Daniel Caesar',
-            subtitle: 'Nghệ sĩ',
+            subtitle: 'Artist',
             artwork: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80',
             type: 'artist',
             isVerified: true,
@@ -178,7 +173,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
           {
             id: 'keshi',
             title: 'keshi',
-            subtitle: 'Nghệ sĩ',
+            subtitle: 'Artist',
             artwork: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80',
             type: 'artist',
             isVerified: true,
@@ -186,26 +181,18 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
           {
             id: 'drake',
             title: 'Drake',
-            subtitle: 'Nghệ sĩ',
+            subtitle: 'Artist',
             artwork: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80',
             type: 'artist',
             isVerified: true,
           },
           {
-            id: 'nao_ca_vang',
-            title: 'Não Cá Vàng',
-            subtitle: 'Bài hát • Only C, Lou Hoàng',
-            artwork: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200&q=80',
-            type: 'song',
-            duration: 250,
-          },
-          {
-            id: 'vet_thuong',
-            title: 'vết thương',
-            subtitle: 'Bài hát • Fishy',
-            artwork: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&q=80',
-            type: 'song',
-            duration: 210,
+            id: 'frank_ocean',
+            title: 'Frank Ocean',
+            subtitle: 'Artist',
+            artwork: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=200&q=80',
+            type: 'artist',
+            isVerified: true,
           },
         ];
         setRecentSearches(seedItems);
@@ -250,13 +237,11 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
     const trimmed = text.trim();
     if (!trimmed) {
       setResults([]);
-      setHasSearched(false);
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    setHasSearched(true);
     try {
       const items = await searchTracks(trimmed);
       setResults(items);
@@ -277,7 +262,6 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
 
     if (!text.trim()) {
       setResults([]);
-      setHasSearched(false);
       setLoading(false);
       return;
     }
@@ -301,7 +285,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
     saveRecentSearch({
       id: item.id,
       title: item.title,
-      subtitle: `Bài hát • ${item.artist}`,
+      subtitle: `Song • ${item.artist}`,
       artwork: item.artwork,
       type: 'song',
       duration: item.durationSeconds,
@@ -324,16 +308,14 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
 
   const handleSelectRecent = (item: RecentSearchItem) => {
     if (item.type === 'artist' || item.type === 'playlist') {
-      // Fill search with artist or playlist title
       setQuery(item.title);
       setIsFocused(true);
       performSearch(item.title);
     } else {
-      // Song item
       const track: TrackInfo = {
         id: item.id,
         title: item.title,
-        artist: item.subtitle.replace('Bài hát • ', ''),
+        artist: item.subtitle.replace('Song • ', ''),
         artwork: item.artwork,
         duration: item.duration || 210,
       };
@@ -353,7 +335,6 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
     setIsFocused(false);
     setQuery('');
     setResults([]);
-    setHasSearched(false);
   };
 
   const isQueryActive = query.trim().length > 0;
@@ -366,32 +347,27 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
         <View className="px-5 pt-3 pb-2">
           <View className="flex-row items-center justify-between mb-3">
             <View className="flex-row items-center">
-              <View className="w-8 h-8 rounded-full bg-zinc-800 items-center justify-center border border-zinc-700 mr-3">
-                <Text className="text-white text-xs font-bold">E</Text>
-              </View>
-              <Text className="text-white font-extrabold text-2xl tracking-tight">Tìm kiếm</Text>
+              <LinerLogo size={28} color="#ffffff" className="mr-3" />
+              <Text className="text-white font-extrabold text-2xl tracking-tight">Search</Text>
             </View>
-            <View className="flex-row items-center space-x-3">
-              <TouchableOpacity className="w-8 h-8 items-center justify-center">
-                <Camera size={22} color="#ffffff" />
-              </TouchableOpacity>
-              <TouchableOpacity className="w-8 h-8 items-center justify-center">
-                <Cast size={20} color="#a1a1aa" />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity className="w-8 h-8 items-center justify-center">
+              <Cast size={20} color="#a1a1aa" />
+            </TouchableOpacity>
           </View>
 
-          {/* Big Spotify-Style White Search Bar */}
+          {/* Search Bar matching Liner Desktop */}
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => {
               setIsFocused(true);
               setTimeout(() => inputRef.current?.focus(), 100);
             }}
-            className="flex-row items-center bg-white rounded-lg px-3.5 py-3 shadow-md"
+            className="flex-row items-center bg-card/90 border border-zinc-800 rounded-xl px-3.5 py-3 shadow-sm"
           >
-            <Search size={22} color="#18181b" />
-            <Text className="text-zinc-600 font-medium text-base ml-3">Bạn muốn nghe gì?</Text>
+            <Search size={20} color="#71717a" />
+            <Text className="text-zinc-500 font-medium text-sm ml-3">
+              Search tracks, albums, artists...
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -405,13 +381,13 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
             <ArrowLeft size={22} color="#ffffff" />
           </TouchableOpacity>
 
-          <View className="flex-1 flex-row items-center bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2">
+          <View className="flex-1 flex-row items-center bg-card/90 border border-zinc-800 rounded-xl px-3.5 py-2">
             <TextInput
               ref={inputRef}
               value={query}
               onChangeText={handleQueryChange}
               onSubmitEditing={() => performSearch(query)}
-              placeholder="Bạn muốn nghe gì?"
+              placeholder="Search tracks, albums, artists..."
               placeholderTextColor="#71717a"
               className="flex-1 text-white text-base py-0.5"
               autoCorrect={false}
@@ -423,7 +399,6 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
                 onPress={() => {
                   setQuery('');
                   setResults([]);
-                  setHasSearched(false);
                 }}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
@@ -436,12 +411,12 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
 
       {/* Main Content Area */}
       {!isFocused ? (
-        /* Explore / Browse Genre Grid (Spotify Style) */
+        /* Explore / Browse Genre Grid */
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 110 }}
         >
-          <Text className="text-white font-bold text-lg mb-3">Khám phá nội dung mới mẻ</Text>
+          <Text className="text-white font-bold text-lg mb-3">Explore Categories</Text>
 
           {/* Top Featured Story Banners */}
           <View className="flex-row justify-between mb-4">
@@ -474,13 +449,13 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
                 className="absolute inset-0 opacity-40"
               />
               <View className="bg-black/30 self-start px-2 py-0.5 rounded-full">
-                <Text className="text-white text-[10px] font-semibold uppercase">Mới</Text>
+                <Text className="text-white text-[10px] font-semibold uppercase">New</Text>
               </View>
               <Text className="text-white font-bold text-lg shadow-sm">#admiration</Text>
             </TouchableOpacity>
           </View>
 
-          {/* 2-Column Vibrant Spotify Genre Cards */}
+          {/* 2-Column Vibrant Genre Cards */}
           <View className="flex-row flex-wrap justify-between">
             {GENRE_CATEGORIES.map((cat) => (
               <TouchableOpacity
@@ -488,7 +463,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
                 activeOpacity={0.85}
                 onPress={() => handleSelectGenre(cat)}
                 style={{ backgroundColor: cat.bgColor }}
-                className="w-[48%] h-24 rounded-lg p-3 mb-3.5 overflow-hidden relative shadow-sm"
+                className="w-[48%] h-24 rounded-xl p-3 mb-3.5 overflow-hidden relative shadow-sm border border-white/5"
               >
                 <Text className="text-white font-bold text-sm leading-tight pr-6">
                   {cat.title}
@@ -509,7 +484,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
         loading ? (
           <View className="flex-1 items-center justify-center p-6">
             <ActivityIndicator size="small" color="#ffffff" />
-            <Text className="text-zinc-500 text-xs mt-3 font-medium">Đang tìm kiếm...</Text>
+            <Text className="text-zinc-500 text-xs mt-3 font-medium">Searching...</Text>
           </View>
         ) : results.length > 0 ? (
           <FlatList
@@ -562,20 +537,25 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
             <View className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 items-center justify-center mb-3">
               <Search size={22} color="#71717a" />
             </View>
-            <Text className="text-white font-semibold text-base mb-1">Không tìm thấy kết quả</Text>
+            <Text className="text-white font-semibold text-base mb-1">No results found</Text>
             <Text className="text-zinc-500 text-xs text-center">
-              Thử tìm kiếm với tên bài hát hoặc nghệ sĩ khác.
+              Try searching for another track or artist.
             </Text>
           </View>
         )
       ) : (
-        /* Recent Searches List matching Spotify Mobile */
+        /* Recent Searches List matching Liner Desktop */
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 110 }}
           keyboardShouldPersistTaps="handled"
         >
-          <Text className="text-white font-bold text-xl mb-3">Gần đây</Text>
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-white font-bold text-xl">Recent searches</Text>
+            <TouchableOpacity onPress={clearAllRecentSearches}>
+              <Text className="text-zinc-500 text-xs hover:text-white">Clear</Text>
+            </TouchableOpacity>
+          </View>
 
           {recentSearches.map((item) => (
             <TouchableOpacity
@@ -584,7 +564,6 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
               onPress={() => handleSelectRecent(item)}
               className="flex-row items-center py-2.5"
             >
-              {/* Circular Avatar for Artists, Rounded Square for Songs/Playlists */}
               {item.type === 'artist' ? (
                 <View className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 mr-3.5 border border-white/5">
                   <Image source={{ uri: item.artwork }} className="w-full h-full" />
@@ -611,20 +590,17 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
                 </Text>
               </View>
 
-              {/* Action buttons matching Spotify: (+) and (X) */}
-              <View className="flex-row items-center space-x-2">
-                <TouchableOpacity
-                  onPress={() => removeRecentSearch(item.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  className="w-8 h-8 items-center justify-center"
-                >
-                  <X size={18} color="#71717a" />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                onPress={() => removeRecentSearch(item.id)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                className="w-8 h-8 items-center justify-center"
+              >
+                <X size={18} color="#71717a" />
+              </TouchableOpacity>
             </TouchableOpacity>
           ))}
 
-          {/* Centered Pill Button: Xóa nội dung tìm kiếm gần đây */}
+          {/* Centered Pill Button: Clear recent searches */}
           {recentSearches.length > 0 && (
             <View className="items-center mt-6 mb-8">
               <TouchableOpacity
@@ -633,7 +609,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onTrackSelected }) =
                 className="px-6 py-2.5 rounded-full border border-zinc-700 active:bg-zinc-800"
               >
                 <Text className="text-white font-semibold text-sm">
-                  Xóa nội dung tìm kiếm gần đây
+                  Clear recent searches
                 </Text>
               </TouchableOpacity>
             </View>

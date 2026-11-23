@@ -28,14 +28,43 @@ export function cacheStreamUrl(videoId: string, url: string) {
 }
 
 /**
+ * Robust fetch with strict timeout to prevent any hanging connections on mobile.
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 3500
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Pre-fetches audio stream URL in the background for instant track transition.
+ * Pre-warms the CDN edge socket with a lightweight range pre-buffer.
  */
 export async function prefetchTrackAudioStreamUrl(videoId: string): Promise<void> {
   if (!videoId || getCachedStreamUrl(videoId)) return;
   try {
-    await getTrackAudioStreamUrl(videoId);
+    const streamUrl = await getTrackAudioStreamUrl(videoId);
+    if (streamUrl) {
+      // Warm up CDN connection & socket with initial chunk
+      fetchWithTimeout(streamUrl, { headers: { Range: 'bytes=0-65535' } }, 2000).catch(() => {});
+    }
   } catch {
-    // ignore
+    // ignore background prefetch errors
   }
 }
 
@@ -111,7 +140,7 @@ export async function searchTracks(query: string): Promise<SearchResultItem[]> {
     console.warn('[YouTube] Innertube search error, trying fallback:', error);
   }
 
-  // 2. Fallback search via Piped public instances
+  // 2. Fallback search via Piped public instances (with 3.5s timeout)
   const pipedInstances = [
     'https://api.piped.private.coffee',
     'https://pipedapi.kavin.rocks',
@@ -120,8 +149,10 @@ export async function searchTracks(query: string): Promise<SearchResultItem[]> {
 
   for (const inst of pipedInstances) {
     try {
-      const res = await fetch(
-        `${inst}/search?q=${encodeURIComponent(query.trim())}&filter=videos`
+      const res = await fetchWithTimeout(
+        `${inst}/search?q=${encodeURIComponent(query.trim())}&filter=videos`,
+        {},
+        3500
       );
       if (!res.ok) continue;
       const data = await res.json();
@@ -180,6 +211,7 @@ const IOS_CONFIGS: IOSClientConfig[] = [
 /**
  * Resolves direct high-quality playable audio stream URL.
  * Checks in-memory cache first for instant sub-second playback.
+ * Enforces strict 3.5s timeouts per attempt so it never hangs indefinitely.
  */
 export async function getTrackAudioStreamUrl(videoId: string): Promise<string | null> {
   // Check memory cache for instant (0ms) playback!
@@ -191,10 +223,10 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
 
   console.log(`[AudioStream] Resolving stream for videoId: ${videoId}`);
 
-  // TIER 1: Direct YouTube Player API with iOS Client Configurations
+  // TIER 1: Direct YouTube Player API with iOS Client Configurations (with 3.5s timeout)
   for (const cfg of IOS_CONFIGS) {
     try {
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         'https://www.youtube.com/youtubei/v1/player?prettyPrint=false&alt=json',
         {
           method: 'POST',
@@ -218,7 +250,8 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
               },
             },
           }),
-        }
+        },
+        3500
       );
 
       if (!res.ok) {
@@ -255,6 +288,49 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
     }
   }
 
+  // TIER 1.5: Direct YouTube Player API with Android Music Client
+  try {
+    const res = await fetchWithTimeout(
+      'https://www.youtube.com/youtubei/v1/player?prettyPrint=false&alt=json',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Youtube-Client-Name': '21',
+          'X-Youtube-Client-Version': '6.40.52',
+        },
+        body: JSON.stringify({
+          videoId,
+          context: {
+            client: {
+              clientName: 'ANDROID_MUSIC',
+              clientVersion: '6.40.52',
+              hl: 'en',
+              gl: 'US',
+            },
+          },
+        }),
+      },
+      3000
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const adaptiveFormats = data.streamingData?.adaptiveFormats || [];
+      const generalFormats = data.streamingData?.formats || [];
+      const allAudio = [...adaptiveFormats, ...generalFormats].filter(
+        (f: any) => (f.mimeType || '').includes('audio/') && !!f.url
+      );
+      if (allAudio.length > 0) {
+        allAudio.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+        console.log(`[AudioStream] Resolved via Android Music client`);
+        cacheStreamUrl(videoId, allAudio[0].url);
+        return allAudio[0].url;
+      }
+    }
+  } catch (e: any) {
+    console.warn('[AudioStream] Android Music extraction failed:', e?.message || e);
+  }
+
   // TIER 2: Innertube actions.execute with IOS client
   try {
     const yt = await getInnertube();
@@ -285,7 +361,7 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
     console.warn('[AudioStream] Innertube execution failed:', err?.message || err);
   }
 
-  // TIER 3: Resilient Piped Stream API Failover
+  // TIER 3: Resilient Piped Stream API Failover (with 3s timeout)
   const pipedStreamInstances = [
     'https://api.piped.private.coffee',
     'https://pipedapi.kavin.rocks',
@@ -295,7 +371,7 @@ export async function getTrackAudioStreamUrl(videoId: string): Promise<string | 
 
   for (const inst of pipedStreamInstances) {
     try {
-      const pRes = await fetch(`${inst}/streams/${videoId}`);
+      const pRes = await fetchWithTimeout(`${inst}/streams/${videoId}`, {}, 3000);
       if (!pRes.ok) continue;
 
       const pData = await pRes.json();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Dimensions,
   StyleSheet,
   ScrollView,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useProgress } from 'react-native-track-player';
 import {
@@ -25,11 +27,15 @@ import {
   Share2,
   ListMusic,
   ArrowUpRight,
+  Sparkles,
+  Trash2,
+  X,
+  Volume2,
 } from 'lucide-react-native';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { SyncedLyricsView } from '../components/lyrics/SyncedLyricsView';
-import { PlaybackMode } from '../types';
+import { PlaybackMode, TrackInfo } from '../types';
 
 const { width } = Dimensions.get('window');
 
@@ -39,6 +45,8 @@ interface PlayerScreenProps {
 
 export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const queue = usePlayerStore((s) => s.queue);
+  const queueIndex = usePlayerStore((s) => s.queueIndex);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const playbackMode = usePlayerStore((s) => s.playbackMode);
   const lyrics = usePlayerStore((s) => s.lyrics);
@@ -47,11 +55,14 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
   const skipPrevious = usePlayerStore((s) => s.skipPrevious);
   const seekTo = usePlayerStore((s) => s.seekTo);
   const setPlaybackMode = usePlayerStore((s) => s.setPlaybackMode);
+  const playTrack = usePlayerStore((s) => s.playTrack);
 
   const favorites = useLibraryStore((s) => s.favorites);
   const toggleFavorite = useLibraryStore((s) => s.toggleFavorite);
 
-  const [showFullLyrics, setShowFullLyrics] = useState(false);
+  const [showFullWordly, setShowFullWordly] = useState(false);
+  const [showQueueModal, setShowQueueModal] = useState(false);
+
   const { position, duration } = useProgress(200);
 
   if (!currentTrack) return null;
@@ -105,21 +116,27 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
           className="opacity-40"
         />
       ) : null}
-      <View style={StyleSheet.absoluteFillObject} className="bg-black/60" />
+      <View style={StyleSheet.absoluteFillObject} className="bg-black/65" />
 
       <SafeAreaView className="flex-1">
-        {showFullLyrics ? (
-          /* Full Screen Synced Karaoke Lyrics Mode */
+        {showFullWordly ? (
+          /* Liner-Style Full Screen Wordly (Lyrics) Mode */
           <View className="flex-1 px-5 pt-2">
-            <View className="flex-row items-center justify-between py-2">
+            <View className="flex-row items-center justify-between py-2 border-b border-white/10 pb-3">
               <TouchableOpacity
-                onPress={() => setShowFullLyrics(false)}
+                onPress={() => setShowFullWordly(false)}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 className="w-10 h-10 rounded-full bg-white/10 items-center justify-center"
               >
                 <ChevronDown size={22} color="#ffffff" />
               </TouchableOpacity>
-              <Text className="text-white font-bold text-base">Lời bài hát</Text>
+
+              <View className="flex-row items-center">
+                <Sparkles size={16} color="#38bdf8" className="mr-1.5" />
+                <Text className="text-white font-bold text-base">Wordly</Text>
+                <Text className="text-zinc-500 text-xs ml-2 font-mono">0.0s</Text>
+              </View>
+
               <View className="w-10" />
             </View>
 
@@ -128,7 +145,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
             </View>
           </View>
         ) : (
-          /* Spotify-Style Immersive Player Screen */
+          /* Liner-Inspired Mobile Player Screen */
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 60 }}
@@ -145,7 +162,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
 
               <View className="items-center flex-1 mx-3">
                 <Text className="text-zinc-400 font-bold text-[11px] tracking-wider uppercase">
-                  Đang phát từ Album
+                  PLAYING FROM ALBUM
                 </Text>
                 <Text className="text-white font-bold text-sm mt-0.5" numberOfLines={1}>
                   {currentTrack.album || currentTrack.title}
@@ -178,7 +195,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
               )}
             </View>
 
-            {/* Title, Artist & Favorite */}
+            {/* Title, Artist & Heart Favorite */}
             <View className="flex-row items-center justify-between mt-6 mb-4">
               <View className="flex-1 mr-4">
                 <Text className="text-white font-extrabold text-2xl" numberOfLines={1}>
@@ -202,7 +219,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Scrubber Progress Bar */}
+            {/* Liner Timeline Scrubber Slider */}
             <View className="my-2">
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -230,7 +247,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
               </View>
             </View>
 
-            {/* Primary Media Controls */}
+            {/* Transport Media Controls */}
             <View className="flex-row items-center justify-between mt-4 px-1">
               {/* Shuffle Toggle */}
               <TouchableOpacity
@@ -287,35 +304,40 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Auxiliary Tools: Cast & Sharing */}
+            {/* Liner-Style Auxiliary Toolbar: Cast, Share, Queue, Wordly */}
             <View className="flex-row items-center justify-between mt-6 px-1">
               <TouchableOpacity className="w-10 h-10 items-center justify-center">
                 <Cast size={20} color="#a1a1aa" />
               </TouchableOpacity>
 
               <View className="flex-row items-center space-x-3">
+                <TouchableOpacity
+                  onPress={() => setShowQueueModal(true)}
+                  className="w-10 h-10 items-center justify-center"
+                >
+                  <ListMusic size={22} color="#ffffff" />
+                </TouchableOpacity>
+
                 <TouchableOpacity className="w-10 h-10 items-center justify-center">
                   <Share2 size={20} color="#a1a1aa" />
-                </TouchableOpacity>
-                <TouchableOpacity className="w-10 h-10 items-center justify-center">
-                  <ListMusic size={22} color="#a1a1aa" />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* SPOTIFY-STYLE IN-PLAYER LIVE LYRICS PREVIEW CARD */}
-            {/* Crucial Rule: Render ONLY when lyrics actually exist! */}
+            {/* LINER-STYLE IN-PLAYER WORDLY / LYRICS PREVIEW CARD */}
+            {/* Auto-hide if track has no lyrics! */}
             {hasLyrics ? (
               <TouchableOpacity
                 activeOpacity={0.9}
-                onPress={() => setShowFullLyrics(true)}
+                onPress={() => setShowFullWordly(true)}
                 className="mt-8 rounded-3xl bg-[#1e3a8a]/80 border border-blue-400/20 p-5 shadow-2xl"
               >
                 {/* Header */}
                 <View className="flex-row items-center justify-between mb-3">
-                  <Text className="text-white font-bold text-base">
-                    Bản xem trước lời bài hát
-                  </Text>
+                  <View className="flex-row items-center">
+                    <Sparkles size={16} color="#38bdf8" className="mr-1.5" />
+                    <Text className="text-white font-bold text-base">Lyrics Preview</Text>
+                  </View>
                   <ArrowUpRight size={18} color="#ffffff" />
                 </View>
 
@@ -339,11 +361,11 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
                   })}
                 </View>
 
-                {/* Pill Button: Hiện lời bài hát */}
+                {/* Pill Button: Show Lyrics */}
                 <View className="self-start mt-4">
                   <View className="px-5 py-2 rounded-full bg-white shadow">
                     <Text className="text-black font-bold text-sm">
-                      Hiện lời bài hát
+                      Show Lyrics
                     </Text>
                   </View>
                 </View>
@@ -352,6 +374,109 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ onClose }) => {
           </ScrollView>
         )}
       </SafeAreaView>
+
+      {/* Liner-Style Queue Modal */}
+      <Modal
+        visible={showQueueModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowQueueModal(false)}
+      >
+        <View className="flex-1 bg-black/80 justify-end">
+          <View className="h-[80%] bg-[#121214] rounded-t-3xl border-t border-zinc-800 p-5">
+            {/* Queue Header */}
+            <View className="flex-row items-center justify-between pb-4 border-b border-zinc-800">
+              <View className="flex-row items-center">
+                <TouchableOpacity
+                  onPress={() => setShowQueueModal(false)}
+                  className="w-8 h-8 items-center justify-center mr-2"
+                >
+                  <ChevronDown size={22} color="#ffffff" />
+                </TouchableOpacity>
+                <View>
+                  <Text className="text-white font-bold text-lg">Queue</Text>
+                  <Text className="text-zinc-400 text-xs">{queue.length} tracks</Text>
+                </View>
+              </View>
+
+              <View className="flex-row items-center space-x-2">
+                <TouchableOpacity
+                  onPress={cyclePlaybackMode}
+                  className="w-8 h-8 items-center justify-center"
+                >
+                  <Shuffle
+                    size={18}
+                    color={playbackMode === 'shuffle' ? '#22c55e' : '#a1a1aa'}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowQueueModal(false)}
+                  className="w-8 h-8 items-center justify-center"
+                >
+                  <X size={20} color="#a1a1aa" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Track List */}
+            <FlatList
+              data={queue}
+              keyExtractor={(item, index) => `${item.id}_${index}`}
+              contentContainerStyle={{ paddingVertical: 12, paddingBottom: 40 }}
+              renderItem={({ item, index }) => {
+                const isCurrent = index === queueIndex || item.id === currentTrack.id;
+                return (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      playTrack(item, queue);
+                      setShowQueueModal(false);
+                    }}
+                    className={`flex-row items-center p-2.5 rounded-xl my-0.5 ${
+                      isCurrent ? 'bg-white/10' : ''
+                    }`}
+                  >
+                    {item.artwork ? (
+                      <Image
+                        source={{ uri: item.artwork }}
+                        className="w-11 h-11 rounded-lg bg-zinc-800 mr-3"
+                      />
+                    ) : (
+                      <View className="w-11 h-11 rounded-lg bg-zinc-800 mr-3 items-center justify-center">
+                        <Text className="text-zinc-600 text-xs font-bold">ELX</Text>
+                      </View>
+                    )}
+
+                    <View className="flex-1 mr-2">
+                      <Text
+                        className={`font-semibold text-sm ${
+                          isCurrent ? 'text-primary' : 'text-white'
+                        }`}
+                        numberOfLines={1}
+                      >
+                        {item.title}
+                      </Text>
+                      <Text className="text-zinc-400 text-xs mt-0.5" numberOfLines={1}>
+                        {item.artist}
+                      </Text>
+                    </View>
+
+                    {isCurrent && isPlaying ? (
+                      <View className="w-6 h-6 items-center justify-center mr-2">
+                        <Volume2 size={16} color="#38bdf8" />
+                      </View>
+                    ) : null}
+
+                    <TouchableOpacity className="w-8 h-8 items-center justify-center">
+                      <MoreVertical size={16} color="#71717a" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
